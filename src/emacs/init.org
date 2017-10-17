@@ -1,0 +1,423 @@
+#+TITLE: dustinlacewell's init.el
+#+AUTHOR: Dustin Lacewell
+#+email: dlacewell at gmail dot com
+#+DESCRIPTION: A literate programming style exposition of my Emacs configuration
+#+LANGUAGE: en
+#+STARTUP: overview indent align
+#+BABEL: :cache no
+#+OPTIONS: ^:nil num:nil tags:nil
+#+SETUPFILE: assets/readtheorg.setup
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/readtheorg.css"/>
+#+HTML_HEAD: <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+#+HTML_HEAD: <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="https://www.pirilampo.org/styles/lib/js/jquery.stickytableheaders.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="https://www.pirilampo.org/styles/readtheorg/js/readtheorg.js"></script>
+
+
+* Introduction
+This is a literate-programming styled exposition of my Emacs
+configuration.
+
+I use OSX and deploy Emacs and my configuration with [[https://github.com/dustinlacewell/dotfiles][Nix]].
+
+* OSX Specific
+** Set option -> meta
+#+BEGIN_SRC emacs-lisp
+    (setq mac-option-key-is-meta t
+          mac-command-key-is-meta nil
+          mac-option-modifier 'meta)
+#+END_SRC
+
+* Disable Customizations
+Since all the configuration should live in this version-controlled
+file, discard any customizations made inside Emacs.
+
+#+BEGIN_SRC emacs-lisp
+  (setq custom-file (make-temp-file ""))
+#+END_SRC
+
+* Package Management
+** Initialize package management
+#+BEGIN_SRC emacs-lisp
+  (require 'package)
+  (setq package-enable-at-startup nil)
+  (setq package-archives '(("melpa"        . "https://melpa.org/packages/")
+                           ("gnu"          . "https://elpa.gnu.org/packages/")))
+  (package-initialize)
+#+END_SRC
+
+** Minimize package installation warnings
+#+BEGIN_SRC emacs-lisp
+  (setq byte-compile-warnings nil
+        gnutls-min-prime-bits 4096)
+#+END_SRC
+
+** Boilerplate for refreshing package contents
+#+BEGIN_SRC emacs-lisp
+  (defvar refreshed-package-list nil
+    "This will be t if the package list has been refreshed.")
+
+  (defun ensure-refreshed ()
+    "Ensure the package list has been refreshed this startup."
+    (unless refreshed-package-list
+      (package-refresh-contents)
+      (setq refreshed-package-list t)))
+
+  (defun package-ensure-installed (package)
+    "Install a missing PACKAGE if it isn't already."
+    (unless (package-installed-p package)
+      (package-install package)))
+
+  (advice-add 'package-install
+              :before
+              (lambda (&rest args)
+                (ensure-refreshed)))
+#+END_SRC
+
+** Install use-package
+#+BEGIN_SRC emacs-lisp
+  (package-ensure-installed 'use-package)
+  (eval-when-compile
+    (defvar use-package-verbose t)
+    (require 'use-package))
+#+END_SRC
+
+** Install req-package
+#+BEGIN_SRC emacs-lisp
+  (package-ensure-installed 'req-package)
+  (eval-when-compile
+    (require 'req-package))
+#+END_SRC
+
+** Load site-lisp
+#+BEGIN_SRC emacs-lisp
+  (defvar emacs-site-lisp-directory
+    (concat user-emacs-directory "site-lisp/")
+    "This variable dictates where to put auto saves. It is set to a
+    directory called autosaves located wherever your .emacs.d/ is
+    located.")
+
+  (unless (file-exists-p emacs-site-lisp-directory)
+      (make-directory emacs-site-lisp-directory))
+
+  (eval-when-compile (require 'cl))
+  (defun add-subdirs-to-load-path (parent-dir)
+    "Adds every non-hidden subdir of PARENT-DIR to `load-path'."
+    (let* ((default-directory parent-dir))
+      (progn
+        (setq load-path
+              (append
+               (remove-if-not
+                (lambda (dir) (file-directory-p dir))
+                (directory-files (expand-file-name parent-dir) t "^[^\\.]"))
+               load-path)))))
+
+  (add-subdirs-to-load-path emacs-site-lisp-directory)
+
+  (defun site-lisp-dir-for (name)
+    (format (concat emacs-site-lisp-directory "/%s") name))
+
+  (defun site-lisp-library-el-path (name)
+    (expand-file-name (format "%s.el" name) (site-lisp-dir-for name)))
+
+  (defun download-site-lisp-module (name url)
+    (let ((dir (site-lisp-dir-for name)))
+      (message "Downloading %s from %s" name url)
+      (unless (file-directory-p dir)
+        (make-directory dir t))
+      (add-to-list 'load-path dir)
+      (let ((el-file (site-lisp-library-el-path name)))
+        (url-copy-file url el-file t nil)
+        el-file)))
+
+  (defun ensure-lib-from-url (name url)
+    (unless (site-lisp-library-loadable-p name)
+      (byte-compile-file (download-site-lisp-module name url))))
+
+  (defun site-lisp-library-loadable-p (name)
+    "Return whether or not the library `name' can be loaded from a
+  source file under ~/.emacs.d/site-lisp/name/"
+    (let ((f (locate-library name)))
+      (and f (string-prefix-p (file-name-as-directory (site-lisp-dir-for name)) f))))
+#+END_SRC
+* Autocompletion
+** Enable company-mode
+#+BEGIN_SRC emacs-lisp
+  (req-package company
+    :config (add-hook 'after-init-hook 'global-company-mode))
+#+END_SRC
+* Autosaves
+Auto-save will periodically save your file to backup file while you
+edit. This is great if something goes catastrophically wrong to Emacs!
+** Store autosaves in a single place
+#+BEGIN_SRC emacs-lisp
+  (defvar emacs-autosave-directory
+    (concat user-emacs-directory "autosaves/")
+    "This variable dictates where to put auto saves. It is set to a
+    directory called autosaves located wherever your .emacs.d/ is
+    located.")
+
+  (unless (file-exists-p emacs-autosave-directory)
+      (make-directory emacs-autosave-directory))
+
+  (setq auto-save-file-name-transforms `((".*"
+  ,emacs-autosave-directory t)))
+#+END_SRC
+** Save every 20 secs or 20 keystrokes
+#+BEGIN_SRC emacs-lisp
+  (setq auto-save-timeout 20
+        auto-save-interval 20)
+#+END_SRC
+
+** Autosave every buffer that visits a file
+#+BEGIN_SRC emacs-lisp
+  (setq auto-save-default t)
+#+END_SRC
+* Backups
+Backups are created everytime a buffer is saved. This is really useful
+for recovering work that takes place between version-control commits
+or on unversioned files.
+
+** Store backups with the autosaves
+#+BEGIN_SRC emacs-lisp
+  (setq backup-directory-alist
+        `((".*" . ,emacs-autosave-directory)))
+#+END_SRC
+
+** Keep 10 backups
+#+BEGIN_SRC emacs-lisp
+  (setq kept-new-versions 10
+        kept-old-verisons 0)
+#+END_SRC
+
+** Delete old backups
+#+BEGIN_SRC emacs-lisp
+  (setq delete-old-versions t)
+#+END_SRC
+
+** Copy files to avoid various problems
+#+BEGIN_SRC emacs-lisp
+  (setq backup-by-copying t)
+#+END_SRC
+
+** Backup files even if version controlled
+#+BEGIN_SRC emacs-lisp
+  (setq vc-make-backup-files t)
+#+END_SRC
+
+** Backup every save
+#+BEGIN_SRC emacs-lisp
+  (req-package backup-each-save
+    :config (add-hook 'after-save-hook 'backup-each-save))
+#+END_SRC
+* Helm
+[[https://github.com/emacs-helm/helm][Helm]] is a visual incremental-completion helper.
+** Core bindings
+#+BEGIN_SRC emacs-lisp
+  (req-package helm
+    :bind (("M-x" . helm-M-x)
+           ("C-x C-f" . helm-find-files)
+           ("C-x b" . helm-buffers-list)
+           ("C-c y" . helm-show-kill-ring)
+           ("C-x C-r" . helm-recentf)
+           ("C-x r l" . helm-bookmarks))
+    :config (require 'helm-config))
+#+END_SRC
+** Ace makes selection even faster
+#+BEGIN_SRC emacs-lisp
+  (req-package ace-jump-helm-line
+    :commands ace-jump-helm-line
+    :require helm
+    :init (define-key helm-map (kbd "C-;") 'ace-jump-helm-line))
+#+END_SRC
+
+** Have Helm show us keybinding info
+#+BEGIN_SRC emacs-lisp
+  (req-package helm-descbinds
+    :commands helm-descbinds
+    :bind (("C-h b" . helm-descbinds))
+    :require helm)
+#+END_SRC
+
+** Helm can show Makefile commands
+#+BEGIN_SRC emacs-lisp
+  (req-package helm-make
+    :commands helm-make
+    :bind (("M-p m" . helm-make-projectile))
+    :require makefile-runner)
+#+END_SRC
+
+* Look and Feel
+** Use badger-theme
+#+BEGIN_SRC emacs-lisp
+  (req-package badger-theme
+    :config (load-theme 'badger t))
+#+END_SRC
+
+** Disable the menubar, toolbar and scrollbar
+#+BEGIN_SRC emacs-lisp
+  (req-package menu-bar
+    :config
+    (menu-bar-mode -1))
+
+  (req-package tool-bar
+    :config
+    (tool-bar-mode -1))
+
+  (req-package scroll-bar
+    :config
+    (scroll-bar-mode -1))
+#+END_SRC
+
+** Disable startup messages
+#+BEGIN_SRC emacs-lisp
+  (setq inhibit-startup-message t
+        initial-scratch-message nil)
+#+END_SRC
+
+** Use a blinking box cursor
+#+BEGIN_SRC emacs-lisp
+  (setq-default cursor-type 'box)
+  (blink-cursor-mode 1)
+#+END_SRC
+
+** Show column number
+#+BEGIN_SRC emacs-lisp
+  (req-package simple
+    :config
+    (column-number-mode 1))
+#+END_SRC
+
+** Always use spaces
+#+BEGIN_SRC emacs-lisp
+  (setq-default indent-tabs-mode nil)
+#+END_SRC
+
+** Fill at 79 characters
+#+BEGIN_SRC emacs-lisp
+  (setq-default fill-column 79)
+#+END_SRC
+
+** Autofill org-mode and text-mode
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'text-mode-hook 'turn-on-auto-fill)
+  (add-hook 'org-mode-hook 'turn-on-auto-fill)
+#+END_SRC
+
+** Always show whitespace
+#+BEGIN_SRC emacs-lisp
+  (req-package whitespace
+    :diminish global-whitespace-mode
+    :init
+    (setq whitespace-style
+          '(face tabs newline trailing tab-mark space-before-tab space-after-tab))
+    (global-whitespace-mode 1))
+#+END_SRC
+
+** Enable prettified symbols
+Various symbols will be replaced with nice looking unicode glyphs.
+#+BEGIN_SRC emacs-lisp
+  (global-prettify-symbols-mode 1)
+#+END_SRC
+
+** Enable electric-pair mode
+Matching closed brackets are inserted for any typed open bracket.
+#+BEGIN_SRC emacs-lisp
+  (electric-pair-mode 1)
+#+END_SRC
+
+** Enable rainbow delimiters
+#+BEGIN_SRC emacs-lisp
+  (req-package rainbow-delimiters
+    :commands rainbow-delimiters-mode
+    :init
+    (custom-set-variables '(rainbow-delimiters-max-face-count 8))
+    (add-hook-exec 'emacs-lisp-mode (lambda () (rainbow-delimiters-mode 1))))
+#+END_SRC
+
+** Show a clock on the modeline
+#+BEGIN_SRC emacs-lisp
+  (req-package timeclock
+    :config (progn (display-time-mode 1)))
+#+END_SRC
+
+** Shorten and hide some modes
+#+BEGIN_SRC emacs-lisp
+  (req-package smart-mode-line
+    :config
+    (progn (setq sml/shorten-modes t)
+           (setq sml/shorten-directory t)
+           (setq sml/name-width 20)
+           (setq sml/mode-width 'full)
+           (setq sml/hidden-modes nil)
+           (setq sml/theme nil)
+           (add-to-list 'sml/hidden-modes " Anzu")
+           (add-to-list 'sml/hidden-modes " AC")
+           (add-to-list 'sml/hidden-modes " FlyC")
+           (add-to-list 'sml/hidden-modes " yas")
+           (add-to-list 'sml/hidden-modes " pair")
+           (add-to-list 'sml/hidden-modes " FIC")
+           (add-to-list 'sml/hidden-modes " Abbrev")
+           (add-to-list 'sml/hidden-modes " ARev")
+           (add-to-list 'sml/hidden-modes " SliNav")
+           (add-to-list 'sml/hidden-modes " ElDoc")
+           (add-to-list 'sml/hidden-modes " company")
+           (add-to-list 'sml/hidden-modes " overseer")
+           (add-to-list 'sml/hidden-modes " Guide")
+           (sml/setup)))
+#+END_SRC
+
+** Show match counts on the modeline
+#+BEGIN_SRC emacs-lisp
+  (req-package anzu
+    :require
+    smart-mode-line
+    :config
+    (global-anzu-mode 1))
+#+END_SRC
+
+** Shorten yes-no prompts
+#+BEGIN_SRC emacs-lisp
+  (fset 'yes-or-no-p 'y-or-n-p)
+#+END_SRC
+* Magit
+** Install Magit
+#+BEGIN_SRC emacs-lisp
+  (req-package magit
+    :bind (("C-x g" . magit-status)))
+#+END_SRC
+* Nix
+** Enable nix-mode
+#+BEGIN_SRC emacs-lisp
+  (req-package nix-mode
+    :init (add-to-list 'auto-mode-alist '("\\.nix?\\'" . nix-mode)))
+#+END_SRC
+* Python
+
+** Install Jedi
+[[https://github.com/tkf/emacs-jedi][Jedi]] is an auto-completion server for Python.
+#+BEGIN_SRC emacs-lisp
+  (req-package jedi
+    :init
+    (progn
+      (add-hook 'python-mode-hook 'jedi:setup)
+      (setq jedi:complete-on-dot t)))
+#+END_SRC
+
+* Web-development
+** Enable json-mode
+#+BEGIN_SRC emacs-lisp
+  (req-package json-mode)
+#+END_SRC
+** Enable web-mode
+#+BEGIN_SRC emacs-lisp
+  (req-package web-mode
+    :init (add-to-list 'auto-mode-alist '("\\.html?\\'" . web-mode)
+                       (setq web-mode-engines-alist
+                             '(("django"    . "\\.html\\'")))))
+#+END_SRC
+* Finish package installations
+#+BEGIN_SRC emacs-lisp
+  (req-package-finish)
+#+END_SRC
