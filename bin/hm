@@ -1,0 +1,16 @@
+#!/usr/bin/env zsh
+
+PREFIX=~/.config/nixpkgs
+OVERLAY_SOURCE=$PREFIX/overlays/home-manager.nix
+OVERLAY_TARGET=../home-manager/overlay.nix
+REAL_LINK=$(readlink $OVERLAY_SOURCE)
+
+if [ "$REAL_LINK" != "$OVERLAY_TARGET" ]; then
+    mkdir -p $(dirname $OVERLAY_SOURCE)
+    ln -s "$OVERLAY_TARGET" "$OVERLAY_SOURCE"
+    echo "Installed home-manager nixpkgs overlay symlink:"
+    echo "$OVERLAY_SOURCE -> $OVERLAY_TARGET"
+fi
+
+source ~/.secrets
+home-manager -f ~/.config/nixpkgs/envs/$2.nix $1
