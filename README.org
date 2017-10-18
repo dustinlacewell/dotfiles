@@ -1,4 +1,4 @@
-* dustinlacewell's dotifles
+* dustinlacewell's dotfiles
 This repository contains the sources for deploying my personal workstation
 environment on OSX.
 
