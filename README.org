@@ -286,7 +286,7 @@ In order to utilize ~fetchFromGithub~ we import the ~nixpkgs~ expression.
 ** #3 - Declaration Plugins are specified as Github repos
 
 You are free to use locally available Declaration Plugins, but it will probably
-be most useful to fetch from directly from Github. You will not only need the
+be most useful to fetch directly from Github. You will not only need the
 revision that you desire, but also it's sha256. You can get this by running the
 following command:
 
