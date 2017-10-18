@@ -450,7 +450,7 @@ documentation on derivations is a [[https://nixos.org/nix/manual/#ssec-derivatio
 similarly. It takes a set that describes the build environment and a string
 that contains a build script. Anything written to ~$out~ ends up in the
 resulting package. In this case, our script writes the rendered emacs-lisp file
-out to ~$out/index.html~.
+out to ~$out/init.el~.
 
 *** #7 - An option orgBuild is declared
 
