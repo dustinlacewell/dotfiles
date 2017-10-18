@@ -310,7 +310,7 @@ let's us reference that path.
 
 As a convention, the store paths of the plugins are accumulated into a list.
 
-** #6 - Plugins are joined with configuration expressions
+** #6 - Declartion Plugins are joined with Definition ModulesD
 
 Finally, our plugin list is joined with our list of configuration expressions
 to create our full import list.
