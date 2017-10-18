@@ -128,9 +128,9 @@ bootstrapped.
 
 *** envs/osx.nix
 
-This is the main top-level [[Nix module system][Nix expression]] which I use on OSX. It imports other
+This is the main top-level Env File which I use on OSX. It imports other
 modules containing expressions for installing specific software and
-configuration. Any environment expressions utilized should be placed here.
+configuration. Any Env Files utilized should be placed here.
 
 *** src/
 
