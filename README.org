@@ -306,7 +306,7 @@ Note that we take the ~outPath~ attribute of the result from
 ~fetchFromGithub~. The repo will be checked out into the Nix store and this
 let's us reference that path.
 
-** #5 - The Declaration Plugins are collated into a listed
+** #5 - The Declaration Plugins are collated into a list
 
 As a convention, the store paths of the plugins are accumulated into a list.
 
