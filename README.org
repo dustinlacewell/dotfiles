@@ -58,7 +58,7 @@ A profile is simply directory with paths like ~/bin~ ~lib~ ~etc~ and
 contain symlinks to the binaries within specific versions of those
 "functionally pure" packages described. The ones above that are identified by
 their unique hashes. This means that two different profiles can symlink to two
-different builds of the same version of the same package. In fact, you have
+different builds of the same version of the same package. In fact, you can
 have many many versions of various packages installed and construct profiles
 that have arbitrary subsets of them symlinked in.
 
