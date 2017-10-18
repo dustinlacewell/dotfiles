@@ -548,5 +548,7 @@ source file.
 
 Another plugin [[https://github.com/dustinlacewell/nix-hm-org-export][nix-hm-org-export]] will push an HTML export of your Org-mode
 config to a Github-Pages repository. This needs authentication and here we can
-see the secret being interpolated into the Git URL.
+see the secret being interpolated into the Git URL. An example of this is my
+own Emacs configuration which is pushed up here:
+https://dustinlacewell.github.io/emacs.d/
 
