@@ -177,31 +177,6 @@ Symlink the ~bin/switch~ script somewhere on your ~$PATH~:
 Then edit ~.bashrc~ or ~.zshrc~ to add ~/bin to ~$PATH~. If you can execute the
 ~hm~ command, you're good to go.
 
-* Deploying an Environment
-
-The available environments exist as Nix expression module files inside ~envs/~.
-
-Environments are deployed to your current Nix profile and symlinked into your
-home directory by using the ~hm~ command.
-
-The syntax is simple:
-
-#+BEGIN_SRC sh
-#> hm <command> <env-name>
-#+END_SRC
-
-The available commands are the same as the underlying ~home-manager~ command.
-
-The specified ~env-name~ is interpolated as ~-f
-~/.config/nixpkgs/envs/$env-name.nix~.
-
-The following command will deploy my OSX environment (note you will need a
-proper ~$HOME/.secrets~ file):
-
-#+BEGIN_SRC sh
-#> hm switch osx
-#+END_SRC
-
 * Using hm
 
 The ~hm~ helper command does the following:
@@ -232,4 +207,115 @@ being importable. A Nix "overlay" file is created as symlink:
 ~$HOME/.config/nixpkgs/overlay/home-manager.nix -> ../home-manager/overlay.nix
 #+END_SRC
 
+* Deploying an Environment
+
+The available environments exist as Nix expression module files inside ~envs/~.
+
+Environments are deployed to your current Nix profile and symlinked into your
+home directory by using the ~hm~ command.
+
+The syntax is simple:
+
+#+BEGIN_SRC sh
+#> hm <command> <env-name>
+#+END_SRC
+
+The available commands are the same as the underlying ~home-manager~ command.
+
+The specified ~env-name~ is interpolated as ~-f
+~/.config/nixpkgs/envs/$env-name.nix~.
+
+The following command will deploy my OSX environment (note you will need a
+proper ~$HOME/.secrets~ file):
+
+#+BEGIN_SRC sh
+#> hm switch osx
+#+END_SRC
+
+* Writing an Environment
+
+An environment file is like the entrypoint into Home Manager's build of your
+environment. It has essentially two jobs:
+
+  - Import plugins
+  - Import configuration expressions
+
+Let's look at ~envs/osx.~ as an example:
+
+#+BEGIN_SRC nix
+{ ... }: #1
+
+let
+  nixpkgs = (import <nixpkgs>{}); #1
+
+  org-build = (nixpkgs.fetchFromGitHub { #3
+    owner = "dustinlacewell";
+    repo = "nix-hm-org-build";
+    rev = "1120545faa46254333ec9b3793c009a6f0800b82";
+    sha256 = "0fxl1ib601jvj669j04kq3qnc9ga5y37nkjvfdkfxprk54iilr2y";
+  }).outPath; #4
+
+  org-export = (nixpkgs.fetchFromGitHub {
+    owner = "dustinlacewell";
+    repo = "nix-hm-org-export";
+    rev = "0a63da3086ebd876f4837d02f782ec0de59e1462";
+    sha256 = "0myjmm7d3vbkgqnnpmb9fsvshs4v7jvl5nfc1ygmcnfn95vg3jlb";
+  }).outPath;
+
+  plugins = [ org-build org-export ]; #5
+
+in {
+  imports = plugins ++ [ #6
+    ../src/ssh 
+    ../src/emacs
+    ../src/zsh
+  ];
+}
+#+END_SRC
+
+** #1 - The module returns a function
+
+The top-level value of the expression is a function (syntax ~{}:{}~). HM will
+pass a number of arguments to this function but we are not using any so we
+simply specify ~...~ instead of any names.
+
+** #2 - Nixpkgs is imported
+
+In order to utilize ~fetchFromGithub~ we import the ~nixpkgs~ expression.
+
+** #3 - Plugins are specified as Github repos
+
+You are free to use locally available plugins, but it will probably be most
+useful to fetch from directly from Github. You will not only need the revision
+that you desire, but also it's sha256. You can get this by running the
+following command:
+
+#+BEGIN_SRC sh
+nix-prefetch-git $the-repo-url
+#+END_SRC
+
+To install ~nix-prefetch-get~ into your Nix profile execute:
+
+#+BEGIN_SRC sh
+nix-env -iA nixpkgs.nix-prefetch-git
+#+END_SRC
+
+** #4 - The store path is used
+
+Note that we take the ~outPath~ attribute of the result from
+~fetchFromGithub~. The repo will be checked out into the Nix store and this
+let's us reference that path.
+
+** #5 - The plugins are collated into a listed
+
+As a convention, the plugin store paths are accumulated into a list.
+
+** #6 - Plugins are joined with configuration expressions
+
+Finally, our plugin list is joined with our list of configuration expressions
+to create our full import list.
+
+All of the modules will either declare options, handle options, or set option
+values. Typically plugins define and handle options, while config expressions
+set their values.
 
