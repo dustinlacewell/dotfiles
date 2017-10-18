@@ -1,6 +1,5 @@
-{pkgs, lib, ... }:
+{pkgs, ... }:
 
-with lib;
 with builtins;
 
 let
@@ -9,25 +8,22 @@ let
   token = getEnv "EMACS_D_GITHUB_TOKEN";
 
 in {
+  programs.emacs = {
+    enable = true;
+    package = pkgs.emacs;
+    extraPackages = epkgs: [
+      epkgs.badger-theme
+    ];
+  };
 
-  config = {
-    programs.emacs = {
-      enable = true;
-      package = pkgs.emacs;
-      extraPackages = epkgs: [
-        epkgs.badger-theme
-      ];
-    };
+  programs.orgBuild = {
+    enable = true;
+    source = ./init.org;
+  };
 
-    programs.orgBuild = {
-      enable = true;
-      source = ./init.org;
-    };
-
-    programs.orgExport = {
-      enable = true;
-      source = ./init.org;
-      giturl = "https://${username}:${token}@github.com/${username}/${reponame}.git";
-    };
+  programs.orgExport = {
+    enable = true;
+    source = ./init.org;
+    giturl = "https://${username}:${token}@github.com/${username}/${reponame}.git";
   };
 }
