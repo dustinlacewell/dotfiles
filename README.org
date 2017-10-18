@@ -427,7 +427,7 @@ defined values.
 *** #4 - Dependencies are buildInputs
 
 Remember how packages are functionally pure? Any packages this expression
-relies on its technically an input to that cryptographic hash. A set is created
+relies on is technically an input to that cryptographic hash. A set is created
 with the ~buildInputs~ attribute containing ~pkgs.emacs~ so that we can use it
 later at ~#6~.
 
