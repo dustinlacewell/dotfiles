@@ -312,12 +312,12 @@ As a convention, the store paths of the plugins are accumulated into a list.
 
 ** #6 - Declartion Plugins are joined with Definition ModulesD
 
-Finally, our plugin list is joined with our list of configuration expressions
-to create our full import list.
+Finally, our list of Declaration Plugins is joined with our list of Definition
+Modules to create our full import list.
 
-All of the modules will either declare options, handle options, or set option
-values. Typically plugins define and handle options, while config expressions
-set their values.
+All of the modules will either declare options, handle options, or define
+option values. Typically plugins declare and handle options, while definition modules
+define their values.
 
 * Nix Module System
 
