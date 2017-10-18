@@ -2,7 +2,7 @@
 This repository contains the sources for deploying my personal workstation
 environment on OSX.
 
-The repository is deployed with [[https://github.com/rycee/home-manager][home-manager]] which its built on [[https://nixos.org/nix/][Nix]].
+The repository is deployed with [[https://github.com/rycee/home-manager][home-manager]] which is built on [[https://nixos.org/nix/][Nix]].
 * Overview
 The following sections contain a lot of information. Hopefully this is
 justified by the formidable associated learning curve that comes with learning
