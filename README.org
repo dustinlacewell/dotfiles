@@ -134,7 +134,7 @@ configuration. Any environment expressions utilized should be placed here.
 
 *** src/
 
-This directory contains all of the expression modules that actually describe
+This directory contains all of the definition modules that actually describe
 configuration and how to install it and the software it depends on.
 
 *** bin/
@@ -207,12 +207,12 @@ being importable. A Nix "overlay" file is created as symlink:
 ~$HOME/.config/nixpkgs/overlay/home-manager.nix -> ../home-manager/overlay.nix
 #+END_SRC
 
-* Deploying an Environment
+* Deploying an Env File
 
-The available environments exist as Nix expression module files inside ~envs/~.
+The available Env Files exist as Nix module expressions inside ~envs/~.
 
-Environments are deployed to your current Nix profile and symlinked into your
-home directory by using the ~hm~ command.
+The results of building an Env File are deployed to your current Nix profile
+and symlinked into your home directory by using the ~hm~ command.
 
 The syntax is simple:
 
@@ -232,13 +232,13 @@ proper ~$HOME/.secrets~ file):
 #> hm switch osx
 #+END_SRC
 
-* Writing an Environment
+* Writing an Env File
 
-An environment file is like the entrypoint into Home Manager's build of your
+An Env File is like the entrypoint into Home Manager's build of your
 environment. It has essentially two jobs:
 
-  - Import plugins
-  - Import configuration expressions
+  - Import declaration plugins
+  - Import definition modules
 
 Let's look at ~envs/osx.~ as an example:
 
@@ -246,7 +246,7 @@ Let's look at ~envs/osx.~ as an example:
 { ... }: #1
 
 let
-  nixpkgs = (import <nixpkgs>{}); #1
+  nixpkgs = (import <nixpkgs>{}); #2
 
   org-build = (nixpkgs.fetchFromGitHub { #3
     owner = "dustinlacewell";
@@ -266,7 +266,7 @@ let
 
 in {
   imports = plugins ++ [ #6
-    ../src/ssh 
+    ../src/ssh
     ../src/emacs
     ../src/zsh
   ];
@@ -283,11 +283,11 @@ simply specify ~...~ instead of any names.
 
 In order to utilize ~fetchFromGithub~ we import the ~nixpkgs~ expression.
 
-** #3 - Plugins are specified as Github repos
+** #3 - Declaration Plugins are specified as Github repos
 
-You are free to use locally available plugins, but it will probably be most
-useful to fetch from directly from Github. You will not only need the revision
-that you desire, but also it's sha256. You can get this by running the
+You are free to use locally available Declaration Plugins, but it will probably
+be most useful to fetch from directly from Github. You will not only need the
+revision that you desire, but also it's sha256. You can get this by running the
 following command:
 
 #+BEGIN_SRC sh
@@ -306,9 +306,9 @@ Note that we take the ~outPath~ attribute of the result from
 ~fetchFromGithub~. The repo will be checked out into the Nix store and this
 let's us reference that path.
 
-** #5 - The plugins are collated into a listed
+** #5 - The Declaration Plugins are collated into a listed
 
-As a convention, the plugin store paths are accumulated into a list.
+As a convention, the store paths of the plugins are accumulated into a list.
 
 ** #6 - Plugins are joined with configuration expressions
 
@@ -318,4 +318,235 @@ to create our full import list.
 All of the modules will either declare options, handle options, or set option
 values. Typically plugins define and handle options, while config expressions
 set their values.
+
+* Nix Module System
+
+There are basically three responsibilities within the module system:
+
+  - Declaring Options : Declaring what options exist
+  - Defining Options : Defining values options have
+  - Handling Options : Doing build work based on option values
+
+Every module is defined as a function which returns a set. Every single
+module's returned set is merged. A number of keys in the merged set have
+meaning in this final set:
+
+  - ~imports~ A list of filenames of other Nix modules to import. This results
+    in a large list of functions each of which returns a module. Every function
+    is called and the resulting sets are merged.
+  - ~options~ A set containing a tree of nested type-checked Options. Modules
+    are free to add and override keys in this tree.
+  - ~config~ A set containing keys matching those in the ~options~ set, but
+    setting the values of those options defined earlier.
+
+By convention we use plugin's to declare and handle options, and we define
+option values in our local definition modules, but you are free to declare
+your own options too!
+
+The module system can be confounding. Read through [[https://nixos.org/nixos/manual/index.html#sec-writing-modules][Chapter 31 - Writing NixOS
+Modules]] carefully. While we're not using NixOS proper, and Home Manager doesn't
+come with the same modules, it works the same.
+
+* Declaration Plugins
+
+Plugins are Github repositories that contain Nix expressions which extend the
+declared Option set and handle some aspect of building configuration. Home
+Manager comes with a number of modules for deploying software such as zsh, htop
+and emacs. Plugins on Github (and the web in general) can fill the gap.
+
+** Writing Declaration Plugins
+
+As an example let's look at [[https://github.com/dustinlacewell/nix-hm-org-build][nix-hm-org-build]] which declares some options for
+building an [[http://orgmode.org/][Org-mode]] file into an emacs-lisp file. Org-mode is great for
+organizing text-files, so we can use it to contain our emacs
+configuration.
+
+Emacs can't be configured with Org-mode files, so we must extract all the
+emacs-lisp out of it into a new file. ~nix-hm-org-build~ comes with some elisp
+that can script Emacs to perform this process. So we perform a sub-build that
+contains the ~emacs~ package, adds our elisp file, and then runs Emacs with
+our elisp script to produce our ~init.el~ in the store:
+
+#+BEGIN_SRC nix
+{ config, pkgs, lib, ... }: #1
+
+with lib; #2
+
+let
+  cfg = config.programs.orgBuild; #3
+
+  env = { buildInputs = [ pkgs.emacs ]; }; #4
+
+  script = '' #5
+    ln -s "${cfg.source}" ./init.org;
+    emacs -Q --script "${./org-build.el}" -f make-init-el;
+    cp ./init.el $out;
+  '';
+
+  result = pkgs.runCommand "buildOrg" env script; #6
+
+in {
+
+  options.programs.orgBuild = { #7
+    enable = mkEnableOption "Tangled Orgfile Configuration";
+    source = mkOption { #8
+      type = types.path;
+      description = ''
+      The source orgfile to build as init.el
+      '';
+    };
+  };
+
+  config = mkIf cfg.enable { #8
+    home.file.".emacs.d/init.el".source = result; #9
+  };
+}
+#+END_SRC
+
+*** #1 - Some module arguments are used
+
+Unlike the environment file example above, this module utilizes some of the
+module arguments:
+
+  - ~config~ contains all of the set option values
+  - ~pkgs~ contains all of the available software packages
+  - ~lib~ contains standard library functions
+
+*** #2 - The lib argument is scope merged
+
+The [[https://nixos.org/nix/manual/#idm140737318017088][with expression]] takes a set and merges it's attributes into the current
+scope. This saves typing when we're using a lot of the attributes of a set in
+our expression.
+
+*** #3 - A shortcut is stored to the definition of the option we declare
+
+Later in the file at ~#7~ we declare an option ~programs.orgBuild~. Here at
+~#3~ were save a shortcut called ~cfg~ to easily refer to our option's eventual
+defined values.
+
+*** #4 - Dependencies are buildInputs
+
+Remember how packages are functionally pure? Any packages this expression
+relies on its technically an input to that cryptographic hash. A set is created
+with the ~buildInputs~ attribute containing ~pkgs.emacs~ so that we can use it
+later at ~#6~.
+
+*** #5 - A Bash script is defined
+
+To convert the Org-mode file into an emacs-lisp file, we're actually going to
+run a sub-build! This build's Nix profile will have emacs available, and we'll
+use it to run some elisp that knows how to do the export. Notice that the
+string containing the Bash script refers to the elisp file with a antiquote
+that specifies a relative path. Since we are in ~nix-hm-org-build/default.nix~
+then ~./org-build.el~ refers to this file in the plugin:
+
+https://github.com/dustinlacewell/nix-hm-org-build/blob/master/org-build.el
+
+*** #6 - runCommand creates a new build
+
+In Nix, packages are defined as build descriptions called "derivations". They
+are called this, because the package is derived from its inputs. The
+documentation on derivations is a [[https://nixos.org/nix/manual/#ssec-derivation][must read]]. ~runCommand~ works very
+similarly. It takes a set that describes the build environment and a string
+that contains a build script. Anything written to ~$out~ ends up in the
+resulting package. In this case, our script writes the rendered emacs-lisp file
+out to ~$out/index.html~.
+
+*** #7 - An option orgBuild is declared
+
+A single option is declared that features two sub-options:
+
+  - ~enable~ specifies whether or not to take any action
+  - ~source~ is the absolute path to the source Org-mode file
+
+*** #8 - A home directory file is defined
+
+We specify that if our option's ~enable~ attribute is true that our ~config~
+attribute should be assigned a set which defines a sub-option of the
+~home.file~ attribute. 
+
+*** #9 - Build output is assigned to home directory
+
+The ~result~ name that was defined in the ~let~ clause contains the result of
+our sub-build. We assign this to a sub-attribute of the ~home.file~ attribute
+with the name of the location in our home directory we want the file written
+to. To specify it's content we assign a path pointing to our file. The file
+exists in the Nix store, in our package built by the ~runCommand~ function we
+called.
+
+* Definition Modules
+
+Options are declared by Home Manager modules and any Declaration Plugins
+imported by your Env File. It is the job of Definition Expressions to define
+their values. This has the result of actually dictating what Options are
+enabled and how they should behave.
+
+** Writing Definition Modules
+
+For another example, we'll use the Emacs Definition Module that comes in this
+repository:
+
+#+BEGIN_SRC nix
+{pkgs, ... }: #1
+
+with builtins;
+
+let #2
+  username = "dustinlacewell";
+  reponame = "emacs.d";
+  token = getEnv "EMACS_D_GITHUB_TOKEN"; #3
+
+in {
+  programs.emacs = { #4
+    enable = true;
+    package = pkgs.emacs;
+    extraPackages = epkgs: [
+      epkgs.badger-theme
+    ];
+  };
+
+  programs.orgBuild = { #5
+    enable = true; #6
+    source = ./init.org; #7
+  };
+
+  programs.orgExport = {
+    enable = true;
+    source = ./init.org;
+    giturl = "https://${username}:${token}@github.com/${username}/${reponame}.git"; #8
+  };
+}
+#+END_SRC
+
+*** #1 We refer to pkgs
+
+Since we will be referring to the names of packages, we'll need our module
+function to accept the ~pkgs~ argument.
+
+*** #2 Let is useful for variables
+
+The let clause is good for defining any variables you'll need later on. It
+helps keep your source code DRY and orgnaized.
+
+*** #3 Environment Variables and Secrets
+
+This is an example of environment variable use. In this case it is one the
+secrets from ~$HOME/.secrets~ that the ~hm~ helper will source before calling
+~home-manager~.
+
+*** #4 Home Manager comes with some Declaration Modules
+
+In this case we are using Home Manager's built-in Declaration Plugin module for
+installing Emacs into our Nix profile.
+
+*** #5 We define nim-hm-org-build's Options
+
+Here we enable the nim-hm-org-build Option set and provide the path to the
+source file.
+
+*** #6 Example of using a Secret
+
+Another plugin [[https://github.com/dustinlacewell/nix-hm-org-export][nix-hm-org-export]] will push an HTML export of your Org-mode
+config to a Github-Pages repository. This needs authentication and here we can
+see the secret being interpolated into the Git URL.
 
