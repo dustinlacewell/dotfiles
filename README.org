@@ -470,9 +470,13 @@ attribute should be assigned a set which defines a sub-option of the
 The ~result~ name that was defined in the ~let~ clause contains the result of
 our sub-build. We assign this to a sub-attribute of the ~home.file~ attribute
 with the name of the location in our home directory we want the file written
-to. To specify it's content we assign a path pointing to our file. The file
-exists in the Nix store, in our package built by the ~runCommand~ function we
-called.
+to.
+
+To specify it's content we assign a path pointing to our file. The file
+exists in the Nix store, in the package built by the ~runCommand~ function we
+called. It will exist again in the store, in our Home Manager built package
+once the build is complete. But then the original version from the sub-build
+will be garbage collected.
 
 * Definition Modules
 
