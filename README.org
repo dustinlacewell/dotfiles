@@ -1,0 +1,235 @@
+* dustinlacewell's dotifles
+This repository contains the sources for deploying my personal workstation
+environment on OSX.
+
+The repository is deployed with [[https://github.com/rycee/home-manager][home-manager]] which its built on [[https://nixos.org/nix/][Nix]].
+* Overview
+The following sections contain a lot of information. Hopefully this is
+justified by the formidable associated learning curve that comes with learning
+Nix and figuring out how to properly use Home Manager. That said, if I can
+figure it out, you definitely can. Rest assured, the result is by far the best
+dotfile management system to date!
+** The Overall Problem
+
+I've tried many (and looked over countless more) dotfile management techniques
+and repositories over the years. One problem inherent to the majority is the
+need to reconstitute installations of all software related to your
+configuration. Good luck doing that by memory or auditing the configuration
+itself.
+
+Some solutions I've seen use [[https://en.wikipedia.org/wiki/Configuration_management][configuration management]] tools to deploy the
+associated software and this is actually pretty effective. However, Nix is
+arguably superlative when it comes to systems for describing packages and their
+dependencies.
+
+Home Manager is a tool written in Bash that uses Nix to describe how your
+configuration should be deployed and also to install the related software.
+
+The next sections describe Nix and Home Manager in more detail.
+
+** Nix
+
+*** It is 'just' a package manager
+
+The next few sections describe some of Nix's more interesting properties
+that distinguish it from other package managers. That said, it is important to
+realize that Nix is not a container system, there is no virtualization, and it
+builds native packages that run on your local host. By configuring your user
+environment correctly, you can make it so that the binaries you run come from the
+Nix store instead of your OS's standard locations. This changes the behavior of
+some things, but otherwise there's no magic going on.
+
+*** Its functionally pure
+
+Everytime Nix builds something, every single piece of information that went
+into performing that build gets included into a cryptographically unique
+hash. This hash essentially becomes a part of it's version identifier. This
+means that even if you build the same numbered version of the same package, if
+there are any changes to the source, or configuration that went into building
+it then the hash will be different. And, so, the two built packages will be
+distinct. This means both can be referred to and used independently, even
+though they represent the same version of tar or htop or git or curl or
+whatever it maybe.
+
+*** It has Profiles
+
+A profile is simply directory with paths like ~/bin~ ~lib~ ~etc~ and
+~Applications~ on OSX. But instead of containing any real data, those folders
+contain symlinks to the binaries within specific versions of those
+"functionally pure" packages described. The ones above that are identified by
+their unique hashes. This means that two different profiles can symlink to two
+different builds of the same version of the same package. In fact, you have
+have many many versions of various packages installed and construct profiles
+that have arbitrary subsets of them symlinked in.
+
+By symlinking a profile to ~$HOME/.nix-profile~ and setting your ~$PATH~ to
+~$HOME/.nix-profile/bin~ you can easily change what binaries appear to be
+installed by changing which profile is symlinked.
+
+*** It is also a language
+
+Nix comes with a [[https://en.wikipedia.org/wiki/Declarative_programming][declarative]], [[https://en.wikipedia.org/wiki/Lazy_evaluation][lazily evaluated]] language for describing how
+packages should be built and how they depend on each other. If you haven't
+worked with a lazily evaluated language before it can be quite
+mystifying. (Basically, the ability and necessity to structurally refer to
+names which don't yet have values, but some how magically will by the time the
+code referring to it is evaluated)
+
+The module system makes clever and heavy use of the language's properties and
+it can make learning Nix even trickier. However, once the language becomes
+familiar it becomes clear that its expressitvity can't be overstated. Luckily,
+this repository contains many examples who's similarties should help you
+understand how the module system works.
+
+*** It has a manual
+
+The following chapters can be very useful in getting up to speed with Nix:
+
+  - [[https://nixos.org/nix/manual/#sec-profiles][Chapter 9 - Profiles]]
+  - [[14. A Simple Nix Expression][Chapter 14 - A Simple Nix Expression]]
+  - [[15. Nix Expression Language][Chapter 15 - Nix Expression Language]]
+  - [[8. Basic Package Management][Chapter 8 - Basic Package Management]]
+  - [[10. Garbage Collection][Chapter 10 - Garbage Collection]]
+
+** Home Manager
+
+So far, Nix gives us:
+
+  - a package store, isolated from our system
+  - tools to manage profiles
+  - changes to our environment to utilize a profile
+  - tools to manage the packages installed for a profile
+
+Home-manager is a bash utility that uses Nix to install your configuration's
+software into your Nix profile.
+
+It also performs a package build of its own. The contents of this package are
+up to you. By writing Nix expressions you can describe where what files, with
+what content should be deployed to your home directory.
+
+Of course Nix cannot actually install files to your home directory - it can
+only interact with the Nix store. So you instead install files into the package
+organized however you would have them in your home directory. One the package
+is built and in the Nix store, Home Manager symlinks everything in the package
+from the store into your home directory.
+
+It has a few other nice bells suchs as removing symlinks that it manages, that
+don't appear in new deployments. The end result is the ability to reliably
+deploy both your configuration and the related software.
+
+** Repository Overview
+
+The repository contains a number of components:
+
+*** home-manager/
+
+This is a Git submodule pointing to [[https://github.com/rycee/home-manager][Home Manager]]. This makes it easy to get
+bootstrapped.
+
+*** envs/osx.nix
+
+This is the main top-level [[Nix module system][Nix expression]] which I use on OSX. It imports other
+modules containing expressions for installing specific software and
+configuration. Any environment expressions utilized should be placed here.
+
+*** src/
+
+This directory contains all of the expression modules that actually describe
+configuration and how to install it and the software it depends on.
+
+*** bin/
+
+Contains a helper scripts. So far, the only such script is ~hm~ which is
+described later.
+
+* Bootstrapping
+Getting started involves a number of steps.
+** Install Nix
+
+Install the Nix package manager to your workstation:
+
+#+BEGIN_SRC shell
+  curl https://nixos.org/nix/install | sh
+#+END_SRC
+
+This will create ~/nix~ as well as some system-wide profile scripts which will
+integrate your shell with Nix.
+
+** Clone this repository
+
+This repository should be cloned to ~$HOME/.config/nixpkgs/~
+
+#+BEGIN_SRC shell
+  git clone https://github.com/dustinlacewell/dotfiles.git ~/.config/nixpkgs
+#+END_SRC
+
+** Symlink hm script
+
+Symlink the ~bin/switch~ script somewhere on your ~$PATH~:
+
+#+BEGIN_SRC shell
+  cd
+  mkdir -p bin
+  cd bin
+  ln -s ~/.config/nixpkgs/bin/switch switch
+#+END_SRC
+
+Then edit ~.bashrc~ or ~.zshrc~ to add ~/bin to ~$PATH~. If you can execute the
+~hm~ command, you're good to go.
+
+* Deploying an Environment
+
+The available environments exist as Nix expression module files inside ~envs/~.
+
+Environments are deployed to your current Nix profile and symlinked into your
+home directory by using the ~hm~ command.
+
+The syntax is simple:
+
+#+BEGIN_SRC sh
+#> hm <command> <env-name>
+#+END_SRC
+
+The available commands are the same as the underlying ~home-manager~ command.
+
+The specified ~env-name~ is interpolated as ~-f
+~/.config/nixpkgs/envs/$env-name.nix~.
+
+The following command will deploy my OSX environment (note you will need a
+proper ~$HOME/.secrets~ file):
+
+#+BEGIN_SRC sh
+#> hm switch osx
+#+END_SRC
+
+* Using hm
+
+The ~hm~ helper command does the following:
+
+ - Sources your secrets file
+ - Simplifies the home-manager interface
+ - Ensures that home-manager overlay exists
+
+** Secrets File
+
+Before running ~home-manager~ the ~hm~ command will "source" the file located
+at ~$HOME/.secrets~. This file should export any environment variables that are
+utilized by your expressions. A listing of required secrets in this
+repository's OSX environment are listed later.
+
+** Simplifies the home-manager interface
+
+The ~hm~ command runs the [[https://github.com/rycee/home-manager][home-manager]] command underneath. While ~hm~ only
+takes ~<command>~ and ~<env-name>~ the ~home-manager~ command has other
+options. Check the source for ~hm~ to see how it works.
+
+** Ensures that home-manager overlay exists
+
+When the ~home-manager~ command is executed, it relies on some expressions
+being importable. A Nix "overlay" file is created as symlink:
+
+#+BEGIN_SRC sh
+~$HOME/.config/nixpkgs/overlay/home-manager.nix -> ../home-manager/overlay.nix
+#+END_SRC
+
+
