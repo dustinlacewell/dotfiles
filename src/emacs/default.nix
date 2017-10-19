@@ -1,29 +1,19 @@
-{pkgs, ... }:
-
-with builtins;
+args@{ pkgs, plugins, ...}:
 
 let
-  username = "dustinlacewell";
-  reponame = "emacs.d";
-  token = getEnv "EMACS_D_GITHUB_TOKEN";
+  # export init.org to Github Pages
+  export = plugins.org-export.export {
+    source = ./init.org;
+    user = "dustinlacewell";
+    repo = "emacs.d";
+    token = builtins.getEnv "EMACS_D_GITHUB_TOKEN";
+  };
 
 in {
-  programs.emacs = {
-    enable = true;
-    package = pkgs.emacs;
-    extraPackages = epkgs: [
-      epkgs.badger-theme
-    ];
-  };
-
-  programs.orgBuild = {
-    enable = true;
-    source = ./init.org;
-  };
-
-  programs.orgExport = {
-    enable = true;
-    source = ./init.org;
-    giturl = "https://${username}:${token}@github.com/${username}/${reponame}.git";
-  };
+  # import org-build to load its Options
+  imports = [ plugins.org-build.module ];
+  # ensure that emacs gets installed
+  programs.emacs = { enable = true; };
+  # compile init.el from init.org
+  programs.emacs.org-build = { enable = true; source = ./init.org; };
 }
