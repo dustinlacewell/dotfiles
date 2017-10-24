@@ -1,150 +1,28 @@
-* dustinlacewell's dotfiles
+#+TITLE: dustinlacewell's dotfiles
+#+AUTHOR: Dustin Lacewell
+#+email: dlacewell at gmail dot com
+#+DESCRIPTION: Documentation for my Nix managed dotfiles
+#+LANGUAGE: en
+#+STARTUP: overview indent align
+#+BABEL: :cache no
+#+OPTIONS: ^:nil num:nil tags:nil
+#+SETUPFILE: assets/readtheorg.setup
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="https://www.pirilampo.org/styles/readtheorg/css/readtheorg.css"/>
+#+HTML_HEAD: <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+#+HTML_HEAD: <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="https://www.pirilampo.org/styles/lib/js/jquery.stickytableheaders.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="https://www.pirilampo.org/styles/readtheorg/js/readtheorg.js"></script>
+
+
 This repository contains the sources for deploying my personal workstation
 environment on OSX.
 
 The repository is deployed with [[https://github.com/rycee/home-manager][home-manager]] which is built on [[https://nixos.org/nix/][Nix]].
-* Overview
-The following sections contain a lot of information. Hopefully this is
-justified by the formidable associated learning curve that comes with learning
-Nix and figuring out how to properly use Home Manager. That said, if I can
-figure it out, you definitely can. Rest assured, the result is by far the best
-dotfile management system to date!
-** The Overall Problem
 
-I've tried many (and looked over countless more) dotfile management techniques
-and repositories over the years. One problem inherent to the majority is the
-need to reconstitute installations of all software related to your
-configuration. Good luck doing that by memory or auditing the configuration
-itself.
+** Quickstart
 
-Some solutions I've seen use [[https://en.wikipedia.org/wiki/Configuration_management][configuration management]] tools to deploy the
-associated software and this is actually pretty effective. However, Nix is
-arguably superlative when it comes to systems for describing packages and their
-dependencies.
-
-Home Manager is a tool written in Bash that uses Nix to describe how your
-configuration should be deployed and also to install the related software.
-
-The next sections describe Nix and Home Manager in more detail.
-
-** Nix
-
-*** It is 'just' a package manager
-
-The next few sections describe some of Nix's more interesting properties
-that distinguish it from other package managers. That said, it is important to
-realize that Nix is not a container system, there is no virtualization, and it
-builds native packages that run on your local host. By configuring your user
-environment correctly, you can make it so that the binaries you run come from the
-Nix store instead of your OS's standard locations. This changes the behavior of
-some things, but otherwise there's no magic going on.
-
-*** Its functionally pure
-
-Everytime Nix builds something, every single piece of information that went
-into performing that build gets included into a cryptographically unique
-hash. This hash essentially becomes a part of it's version identifier. This
-means that even if you build the same numbered version of the same package, if
-there are any changes to the source, or configuration that went into building
-it then the hash will be different. And, so, the two built packages will be
-distinct. This means both can be referred to and used independently, even
-though they represent the same version of tar or htop or git or curl or
-whatever it maybe.
-
-*** It has Profiles
-
-A profile is simply directory with paths like ~/bin~ ~lib~ ~etc~ and
-~Applications~ on OSX. But instead of containing any real data, those folders
-contain symlinks to the binaries within specific versions of those
-"functionally pure" packages described. The ones above that are identified by
-their unique hashes. This means that two different profiles can symlink to two
-different builds of the same version of the same package. In fact, you can
-have many many versions of various packages installed and construct profiles
-that have arbitrary subsets of them symlinked in.
-
-By symlinking a profile to ~$HOME/.nix-profile~ and setting your ~$PATH~ to
-~$HOME/.nix-profile/bin~ you can easily change what binaries appear to be
-installed by changing which profile is symlinked.
-
-*** It is also a language
-
-Nix comes with a [[https://en.wikipedia.org/wiki/Declarative_programming][declarative]], [[https://en.wikipedia.org/wiki/Lazy_evaluation][lazily evaluated]] language for describing how
-packages should be built and how they depend on each other. If you haven't
-worked with a lazily evaluated language before it can be quite
-mystifying. (Basically, the ability and necessity to structurally refer to
-names which don't yet have values, but some how magically will by the time the
-code referring to it is evaluated)
-
-The module system makes clever and heavy use of the language's properties and
-it can make learning Nix even trickier. However, once the language becomes
-familiar it becomes clear that its expressitvity can't be overstated. Luckily,
-this repository contains many examples who's similarties should help you
-understand how the module system works.
-
-*** It has a manual
-
-The following chapters can be very useful in getting up to speed with Nix:
-
-  - [[https://nixos.org/nix/manual/#sec-profiles][Chapter 9 - Profiles]]
-  - [[14. A Simple Nix Expression][Chapter 14 - A Simple Nix Expression]]
-  - [[15. Nix Expression Language][Chapter 15 - Nix Expression Language]]
-  - [[8. Basic Package Management][Chapter 8 - Basic Package Management]]
-  - [[10. Garbage Collection][Chapter 10 - Garbage Collection]]
-
-** Home Manager
-
-So far, Nix gives us:
-
-  - a package store, isolated from our system
-  - tools to manage profiles
-  - changes to our environment to utilize a profile
-  - tools to manage the packages installed for a profile
-
-Home-manager is a bash utility that uses Nix to install your configuration's
-software into your Nix profile.
-
-It also performs a package build of its own. The contents of this package are
-up to you. By writing Nix expressions you can describe where what files, with
-what content should be deployed to your home directory.
-
-Of course Nix cannot actually install files to your home directory - it can
-only interact with the Nix store. So you instead install files into the package
-organized however you would have them in your home directory. One the package
-is built and in the Nix store, Home Manager symlinks everything in the package
-from the store into your home directory.
-
-It has a few other nice bells suchs as removing symlinks that it manages, that
-don't appear in new deployments. The end result is the ability to reliably
-deploy both your configuration and the related software.
-
-** Repository Overview
-
-The repository contains a number of components:
-
-*** home-manager/
-
-This is a Git submodule pointing to [[https://github.com/rycee/home-manager][Home Manager]]. This makes it easy to get
-bootstrapped.
-
-*** envs/osx.nix
-
-This is the main top-level Env File which I use on OSX. It imports other
-modules containing expressions for installing specific software and
-configuration. Any Env Files utilized should be placed here.
-
-*** src/
-
-This directory contains all of the definition modules that actually describe
-configuration and how to install it and the software it depends on.
-
-*** bin/
-
-Contains a helper scripts. So far, the only such script is ~hm~ which is
-described later.
-
-* Bootstrapping
-Getting started involves a number of steps.
-** Install Nix
+*** Install Nix
 
 Install the Nix package manager to your workstation:
 
@@ -155,404 +33,209 @@ Install the Nix package manager to your workstation:
 This will create ~/nix~ as well as some system-wide profile scripts which will
 integrate your shell with Nix.
 
-** Clone this repository
+*** Clone this repository
 
-This repository should be cloned to ~$HOME/.config/nixpkgs/~
+Clone this repo to ~$HOME/.config/nixpkgs/~:
 
 #+BEGIN_SRC shell
   git clone https://github.com/dustinlacewell/dotfiles.git ~/.config/nixpkgs
 #+END_SRC
 
-** Symlink hm script
+*** Symlink hm script
 
-Symlink the ~bin/switch~ script somewhere on your ~$PATH~:
+Symlink the ~bin/hm~ script somewhere on your ~$PATH~:
 
 #+BEGIN_SRC shell
-  cd
-  mkdir -p bin
-  cd bin
-  ln -s ~/.config/nixpkgs/bin/switch switch
+  ln -s ~/.config/nixpkgs/bin/hm ~/bin/hm
 #+END_SRC
 
-Then edit ~.bashrc~ or ~.zshrc~ to add ~/bin to ~$PATH~. If you can execute the
-~hm~ command, you're good to go.
+/(make sure ~$HOME/bin~ is on your ~$PATH~!)/
 
-* Using hm
+** Protect your Secrets
 
-The ~hm~ helper command does the following:
+So that you don't need to keep secrets in your configuration ~hm~ will source
+~$HOME/.secrets~. This file should export any environment variables that you
+utilize while building your configuration.
 
- - Sources your secrets file
- - Simplifies the home-manager interface
- - Ensures that home-manager overlay exists
+This file should probably not directly contain your secrets. We recommend
+instead, utilizing a a tool to manage your secrets. The tool can be used to
+interpolate secret values when the file is sourced. Some options might be:
 
-** Secrets File
+  - GNU Pass: https://www.passwordstore.org/
+  - Mozilla SOPS: https://github.com/mozilla/sops
+  - LastPass CLI: https://github.com/lastpass/lastpass-cli
 
-Before running ~home-manager~ the ~hm~ command will "source" the file located
-at ~$HOME/.secrets~. This file should export any environment variables that are
-utilized by your expressions. A listing of required secrets in this
-repository's OSX environment are listed later.
+** Using hm
 
-** Simplifies the home-manager interface
+A wrapper-script ~$HOME/.config/nixpkgs/bin/hm~ is provided which you should
+symlink somewhere on your path:
 
-The ~hm~ command runs the [[https://github.com/rycee/home-manager][home-manager]] command underneath. While ~hm~ only
-takes ~<command>~ and ~<env-name>~ the ~home-manager~ command has other
-options. Check the source for ~hm~ to see how it works.
+#+BEGIN_SRC text
+usage: hm <command> <env>
 
-** Ensures that home-manager overlay exists
+Commands:
+build  - build env to ./result/
+switch - build env to ~/
 
-When the ~home-manager~ command is executed, it relies on some expressions
-being importable. A Nix "overlay" file is created as symlink:
+Environments:
+Loads ~/.config/nixpkgs/envs/<env>.nix
+#+END_SRC
+
+*** Building
+To perform a dry-run use the ~build~ command. It creates a ~./result/~
+directory with the files that would be symlinked into your home directory:
 
 #+BEGIN_SRC sh
-~$HOME/.config/nixpkgs/overlay/home-manager.nix -> ../home-manager/overlay.nix
+  #> hm build osx
+
+  ...
 #+END_SRC
-
-* Deploying an Env File
-
-The available Env Files exist as Nix module expressions inside ~envs/~.
-
-The results of building an Env File are deployed to your current Nix profile
-and symlinked into your home directory by using the ~hm~ command.
-
-The syntax is simple:
 
 #+BEGIN_SRC sh
-#> hm <command> <env-name>
+  #> tree ./result/
+
+  ./result/
+  ├── activate
+  ├── home-files -> /nix/store/5x3dxzivrnh0lks5sc3fgfkcg4884xb1-home-manager-files
+  └── home-path -> /nix/store/2scx60dwvx9fvi55cwcjmg39gd2ymvvl-home-manager-path
+
+  2 directories, 1 file
 #+END_SRC
 
-The available commands are the same as the underlying ~home-manager~ command.
-
-The specified ~env-name~ is interpolated as ~-f
-~/.config/nixpkgs/envs/$env-name.nix~.
-
-The following command will deploy my OSX environment (note you will need a
-proper ~$HOME/.secrets~ file):
+*** Switching
+Once you're satisfied with the dry-run output, use the ~switch~ command to
+actually install symlinks into your home directory.
 
 #+BEGIN_SRC sh
-#> hm switch osx
+  #> hm switch osx
+
+  ...
 #+END_SRC
 
-* Writing an Env File
+#+BEGIN_SRC sh
+  #> find ~/ -type l -ls | grep "nix/store"
 
-An Env File is like the entrypoint into Home Manager's build of your
-environment. It has essentially two jobs:
+  lrwxr-xr-x ~/.config/zsh/.zshenv -> /nix/store/5x3dxzivrnh0lks5sc3fgfkcg4884xb1-home-manager-files/.config/zsh/.zshenv
+  lrwxr-xr-x ~/.config/zsh/.zshrc -> /nix/store/5x3dxzivrnh0lks5sc3fgfkcg4884xb1-home-manager-files/.config/zsh/.zshrc
+  lrwxr-xr-x ~/.emacs.d/init.el -> /nix/store/5x3dxzivrnh0lks5sc3fgfkcg4884xb1-home-manager-files/.emacs.d/init.el
+  lrwxr-xr-x ~/.emacs.d/init.html -> /nix/store/5x3dxzivrnh0lks5sc3fgfkcg4884xb1-home-manager-files/.emacs.d/init.html
+  lrwxr-xr-x ~/.ssh/config -> /nix/store/5x3dxzivrnh0lks5sc3fgfkcg4884xb1-home-manager-files/.ssh/config
+  lrwxr-xr-x ~/.zshenv -> /nix/store/5x3dxzivrnh0lks5sc3fgfkcg4884xb1-home-manager-files/.zshenv
+#+END_SRC
 
-  - Import declaration plugins
-  - Import definition modules
+** Plugins
 
-Let's look at ~envs/osx.~ as an example:
+Plugins are defined in ~$HOME/.config/nixpkgs/plugins.nix~.
+
+This expression contains a simple attrset. Each attribute is the name of a
+plugin. Its value should be a NixOS package. The package can be fetched
+dynamically using any of the following helpers:
+
+#+BEGIN_SRC text
+  pkgs.fetchFromBitbucket  pkgs.fetchFromGitHub
+  pkgs.fetchFromGitLab     pkgs.fetchFromRepoOrCz
+  pkgs.fetchFromSavannah   pkgs.fetchHex
+  pkgs.fetchMavenArtifact  pkgs.fetchNuGet
+  pkgs.fetchRepoProject    pkgs.fetchadc
+  pkgs.fetchbower          pkgs.fetchbzr
+  pkgs.fetchcvs            pkgs.fetchdarcs
+  pkgs.fetchegg            pkgs.fetchfossil
+  pkgs.fetchgit            pkgs.fetchgitLocal
+  pkgs.fetchgitPrivate     pkgs.fetchgitrevision
+  pkgs.fetchgx             pkgs.fetchhg
+  pkgs.fetchmail           pkgs.fetchmtn
+  pkgs.fetchpatch          pkgs.fetchs3
+  pkgs.fetchsvn            pkgs.fetchsvnrevision
+  pkgs.fetchsvnssh         pkgs.fetchurl
+  pkgs.fetchurlBoot        pkgs.fetchzip
+#+END_SRC
+
+
+** Envfiles
+Envfiles are a top-level Nix expressions that live in ~$HOME/.config/nixpkgs/envs/~.
+
+Their job is to import the other expressions which make up the environment. You
+can have multiple envfiles, one for each unique environment. Take look at
+~envs/osx.nix~ to see how I write mine:
 
 #+BEGIN_SRC nix
-{ ... }: #1
-
-let
-  nixpkgs = (import <nixpkgs>{}); #2
-
-  org-build = (nixpkgs.fetchFromGitHub { #3
-    owner = "dustinlacewell";
-    repo = "nix-hm-org-build";
-    rev = "1120545faa46254333ec9b3793c009a6f0800b82";
-    sha256 = "0fxl1ib601jvj669j04kq3qnc9ga5y37nkjvfdkfxprk54iilr2y";
-  }).outPath; #4
-
-  org-export = (nixpkgs.fetchFromGitHub {
-    owner = "dustinlacewell";
-    repo = "nix-hm-org-export";
-    rev = "0a63da3086ebd876f4837d02f782ec0de59e1462";
-    sha256 = "0myjmm7d3vbkgqnnpmb9fsvshs4v7jvl5nfc1ygmcnfn95vg3jlb";
-  }).outPath;
-
-  plugins = [ org-build org-export ]; #5
-
-in {
-  imports = plugins ++ [ #6
-    ../src/ssh
-    ../src/emacs
-    ../src/zsh
-  ];
-}
-#+END_SRC
-
-** #1 - The module returns a function
-
-The top-level value of the expression is a function (syntax ~{}:{}~). HM will
-pass a number of arguments to this function but we are not using any so we
-simply specify ~...~ instead of any names.
-
-** #2 - Nixpkgs is imported
-
-In order to utilize ~fetchFromGithub~ we import the ~nixpkgs~ expression.
-
-** #3 - Declaration Plugins are specified as Github repos
-
-You are free to use locally available Declaration Plugins, but it will probably
-be most useful to fetch directly from Github. You will not only need the
-revision that you desire, but also it's sha256. You can get this by running the
-following command:
-
-#+BEGIN_SRC sh
-nix-prefetch-git $the-repo-url
-#+END_SRC
-
-To install ~nix-prefetch-get~ into your Nix profile execute:
-
-#+BEGIN_SRC sh
-nix-env -iA nixpkgs.nix-prefetch-git
-#+END_SRC
-
-** #4 - The store path is used
-
-Note that we take the ~outPath~ attribute of the result from
-~fetchFromGithub~. The repo will be checked out into the Nix store and this
-let's us reference that path.
-
-** #5 - The Declaration Plugins are collated into a list
-
-As a convention, the store paths of the plugins are accumulated into a list.
-
-** #6 - Declartion Plugins are joined with Definition ModulesD
-
-Finally, our list of Declaration Plugins is joined with our list of Definition
-Modules to create our full import list.
-
-All of the modules will either declare options, handle options, or define
-option values. Typically plugins declare and handle options, while definition modules
-define their values.
-
-* Nix Module System
-
-There are basically three responsibilities within the module system:
-
-  - Declaring Options : Declaring what options exist
-  - Defining Options : Defining values options have
-  - Handling Options : Doing build work based on option values
-
-Every module is defined as a function which returns a set. Every single
-module's returned set is merged. A number of keys in the merged set have
-meaning in this final set:
-
-  - ~imports~ A list of filenames of other Nix modules to import. This results
-    in a large list of functions each of which returns a module. Every function
-    is called and the resulting sets are merged.
-  - ~options~ A set containing a tree of nested type-checked Options. Modules
-    are free to add and override keys in this tree.
-  - ~config~ A set containing keys matching those in the ~options~ set, but
-    setting the values of those options defined earlier.
-
-By convention we use plugin's to declare and handle options, and we define
-option values in our local definition modules, but you are free to declare
-your own options too!
-
-The module system can be confounding. Read through [[https://nixos.org/nixos/manual/index.html#sec-writing-modules][Chapter 31 - Writing NixOS
-Modules]] carefully. While we're not using NixOS proper, and Home Manager doesn't
-come with the same modules, it works the same.
-
-* Declaration Plugins
-
-Plugins are Github repositories that contain Nix expressions which extend the
-declared Option set and handle some aspect of building configuration. Home
-Manager comes with a number of modules for deploying software such as zsh, htop
-and emacs. Plugins on Github (and the web in general) can fill the gap.
-
-** Writing Declaration Plugins
-
-As an example let's look at [[https://github.com/dustinlacewell/nix-hm-org-build][nix-hm-org-build]] which declares some options for
-building an [[http://orgmode.org/][Org-mode]] file into an emacs-lisp file. Org-mode is great for
-organizing text-files, so we can use it to contain our emacs
-configuration.
-
-Emacs can't be configured with Org-mode files, so we must extract all the
-emacs-lisp out of it into a new file. ~nix-hm-org-build~ comes with some elisp
-that can script Emacs to perform this process. So we perform a sub-build that
-contains the ~emacs~ package, adds our elisp file, and then runs Emacs with
-our elisp script to produce our ~init.el~ in the store:
-
-#+BEGIN_SRC nix
-{ config, pkgs, lib, ... }: #1
-
-with lib; #2
-
-let
-  cfg = config.programs.orgBuild; #3
-
-  env = { buildInputs = [ pkgs.emacs ]; }; #4
-
-  script = '' #5
-    ln -s "${cfg.source}" ./init.org;
-    emacs -Q --script "${./org-build.el}" -f make-init-el;
-    cp ./init.el $out;
-  '';
-
-  result = pkgs.runCommand "buildOrg" env script; #6
-
-in {
-
-  options.programs.orgBuild = { #7
-    enable = mkEnableOption "Tangled Orgfile Configuration";
-    source = mkOption { #8
-      type = types.path;
-      description = ''
-      The source orgfile to build as init.el
-      '';
-    };
-  };
-
-  config = mkIf cfg.enable { #8
-    home.file.".emacs.d/init.el".source = result; #9
-  };
-}
-#+END_SRC
-
-*** #1 - Some module arguments are used
-
-Unlike the environment file example above, this module utilizes some of the
-module arguments:
-
-  - ~config~ contains all of the set option values
-  - ~pkgs~ contains all of the available software packages
-  - ~lib~ contains standard library functions
-
-*** #2 - The lib argument is scope merged
-
-The [[https://nixos.org/nix/manual/#idm140737318017088][with expression]] takes a set and merges it's attributes into the current
-scope. This saves typing when we're using a lot of the attributes of a set in
-our expression.
-
-*** #3 - A shortcut is stored to the definition of the option we declare
-
-Later in the file at ~#7~ we declare an option ~programs.orgBuild~. Here at
-~#3~ were save a shortcut called ~cfg~ to easily refer to our option's eventual
-defined values.
-
-*** #4 - Dependencies are buildInputs
-
-Remember how packages are functionally pure? Any packages this expression
-relies on is technically an input to that cryptographic hash. A set is created
-with the ~buildInputs~ attribute containing ~pkgs.emacs~ so that we can use it
-later at ~#6~.
-
-*** #5 - A Bash script is defined
-
-To convert the Org-mode file into an emacs-lisp file, we're actually going to
-run a sub-build! This build's Nix profile will have emacs available, and we'll
-use it to run some elisp that knows how to do the export. Notice that the
-string containing the Bash script refers to the elisp file with a antiquote
-that specifies a relative path. Since we are in ~nix-hm-org-build/default.nix~
-then ~./org-build.el~ refers to this file in the plugin:
-
-https://github.com/dustinlacewell/nix-hm-org-build/blob/master/org-build.el
-
-*** #6 - runCommand creates a new build
-
-In Nix, packages are defined as build descriptions called "derivations". They
-are called this, because the package is derived from its inputs. The
-documentation on derivations is a [[https://nixos.org/nix/manual/#ssec-derivation][must read]]. ~runCommand~ works very
-similarly. It takes a set that describes the build environment and a string
-that contains a build script. Anything written to ~$out~ ends up in the
-resulting package. In this case, our script writes the rendered emacs-lisp file
-out to ~$out/init.el~.
-
-*** #7 - An option orgBuild is declared
-
-A single option is declared that features two sub-options:
-
-  - ~enable~ specifies whether or not to take any action
-  - ~source~ is the absolute path to the source Org-mode file
-
-*** #8 - A home directory file is defined
-
-We specify that if our option's ~enable~ attribute is true that our ~config~
-attribute should be assigned a set which defines a sub-option of the
-~home.file~ attribute. 
-
-*** #9 - Build output is assigned to home directory
-
-The ~result~ name that was defined in the ~let~ clause contains the result of
-our sub-build. We assign this to a sub-attribute of the ~home.file~ attribute
-with the name of the location in our home directory we want the file written
-to.
-
-To specify it's content we assign a path pointing to our file. The file
-exists in the Nix store, in the package built by the ~runCommand~ function we
-called. It will exist again in the store, in our Home Manager built package
-once the build is complete. But then the original version from the sub-build
-will be garbage collected.
-
-* Definition Modules
-
-Options are declared by Home Manager modules and any Declaration Plugins
-imported by your Env File. It is the job of Definition Expressions to define
-their values. This has the result of actually dictating what Options are
-enabled and how they should behave.
-
-** Writing Definition Modules
-
-For another example, we'll use the Emacs Definition Module that comes in this
-repository:
-
-#+BEGIN_SRC nix
-{pkgs, ... }: #1
-
-with builtins;
-
-let #2
-  username = "dustinlacewell";
-  reponame = "emacs.d";
-  token = getEnv "EMACS_D_GITHUB_TOKEN"; #3
-
-in {
-  programs.emacs = { #4
-    enable = true;
-    package = pkgs.emacs;
-    extraPackages = epkgs: [
-      epkgs.badger-theme
+  {
+    imports = [
+      ../src/ssh
+      ../src/emacs
+      ../src/zsh
+      ../src/httpie
+      ../src/aws
+      ../src/fasd
     ];
-  };
-
-  programs.orgBuild = { #5
-    enable = true; #6
-    source = ./init.org; #7
-  };
-
-  programs.orgExport = {
-    enable = true;
-    source = ./init.org;
-    giturl = "https://${username}:${token}@github.com/${username}/${reponame}.git"; #8
-  };
-}
+  }
 #+END_SRC
 
-*** #1 We refer to pkgs
+The expression is an attrset. The only attribute is ~imports~ set to a list of
+paths of other expressions to load.
 
-Since we will be referring to the names of packages, we'll need our module
-function to accept the ~pkgs~ argument.
 
-*** #2 Let is useful for variables
+** Expression Sources
+Expression Sources are Nix expressions that actually make up your
+configuration. I organize these underneath ~$HOME/.config/nixpkgs/src/~. For
+each tool I typically create a folder with a ~default.nix~ and any data files.
 
-The let clause is good for defining any variables you'll need later on. It
-helps keep your source code DRY and orgnaized.
+This is ~src/emacs/default.nix~ at the time of this writing:
 
-*** #3 Environment Variables and Secrets
+#+BEGIN_SRC nix
+  { pkgs, ... }: ①
 
-This is an example of environment variable use. In this case it is one the
-secrets from ~$HOME/.secrets~ that the ~hm~ helper will source before calling
-~home-manager~.
+  let
+    plugins = import <plugins>; ②
 
-*** #4 Home Manager comes with some Declaration Modules
+  in {
+    imports = [ ③
+      plugins.org-build
+      plugins.org-export
+    ];
 
-In this case we are using Home Manager's built-in Declaration Plugin module for
-installing Emacs into our Nix profile.
+    programs.emacs = { enable = true; }; ④
 
-*** #5 We define nim-hm-org-build's Options
+    home.file.".emacs.d/init.el".source = pkgs.org-build { ⑤
+      source = ./init.org;
+    };
 
-Here we enable the nim-hm-org-build Option set and provide the path to the
-source file.
+    home.file.".emacs.d/init.html".source = pkgs.org-export { ⑥
+      source = ./init.org;
+      user = "dustinlacewell";
+      repo = "emacs.d";
+    };
+  }
+#+END_SRC
 
-*** #6 Example of using a Secret
+*** ① Module function
+The module is expressed as a function that accepts ~pkgs~ and returns an attrset.
 
-Another plugin [[https://github.com/dustinlacewell/nix-hm-org-export][nix-hm-org-export]] will push an HTML export of your Org-mode
-config to a Github-Pages repository. This needs authentication and here we can
-see the secret being interpolated into the Git URL. An example of this is my
-own Emacs configuration which is pushed up here:
-https://dustinlacewell.github.io/emacs.d/
+*** ② Import plugins.nix
+The expression at ~$HOME/.config/nixpkgs/plugins.nix~ is imported so that we
+can refer to the plugin packages.
 
+*** ③ Add plugins to imports
+One of the attributes of our module's returned attrset is ~imports~. This takes
+a list of modules that should be merged by the module system. This has the
+effect of making available any Options declared or defined by the plugins. It
+also makes any package overrides provided by the plugins available under
+~pkgs~.
+
+*** ④ Install Emacs
+This line declares the ~programs.emacs.enable~ option to be true. This will
+ensure Emacs gets installed the Nix profile.
+
+*** ⑤ Build init.org
+Emacs configuration is done with Emacs-Lisp. But I choose to write my
+configuration as an Orgmode document. This section calls ~pkgs.org-build~
+function which builds an Orgmode document into Emacs-Lisp. This returns the
+path of the built ~.el~ file in the store. We assign that to
+~home.file.".emacs.d/init.el".source~ which will cause the file to be symlinked
+into our home directory.
+
+*** ⑥ Export init.org
+Similar to ⑤ this calls a plugin function. This time it is ~pkgs.org-export~
+which builds ~init.org~ as HTML. This line writes out the HTML file to
+~.emacs.d/init.html~ but ~org-export~ will also publish the HTML file to
+http://dustinlacewell.github.com/emacs.d/
