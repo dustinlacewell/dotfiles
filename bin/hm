@@ -1,5 +1,10 @@
 #!/usr/bin/env zsh
 
+# colors
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# overlay management
 PREFIX=~/.config/nixpkgs
 OVERLAY_SOURCE=$PREFIX/overlays/home-manager.nix
 OVERLAY_TARGET=../home-manager/overlay.nix
@@ -12,7 +17,47 @@ if [ "$REAL_LINK" != "$OVERLAY_TARGET" ]; then
     echo "$OVERLAY_SOURCE -> $OVERLAY_TARGET"
 fi
 
+# plugin support
 export NIX_PATH="plugins=$HOME/.config/nixpkgs/plugins.nix:$NIX_PATH";
 
+# pull in user's secrets
 source ~/.secrets
-home-manager -f ~/.config/nixpkgs/envs/$2.nix $1
+
+
+function usage {
+cat << EOF
+usage: hm <command> <env>
+
+Commands:
+build  - build env to ./result/
+switch - build env to ~/
+
+Environments:
+Loads ~/.config/nixpkgs/envs/<env>.nix
+
+EOF
+
+exit 0
+}
+
+if [[ $# -ne 2 ]] ; then
+    usage;
+    exit 0
+fi
+
+local command="$1"
+local envfile="$HOME/.config/nixpkgs/envs/$2.nix"
+
+if [ ! -e $envfile ]; then
+    echo "Envfile not found: $envfile"
+    exit 0
+fi
+
+case "$command" in
+    build)  :;;
+    switch) :;;
+    *) echo -e "No such '${RED}$command${NC}' command."; usage ;;
+esac
+
+
+home-manager -f $envfile $command
