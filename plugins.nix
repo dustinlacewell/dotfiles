@@ -13,7 +13,7 @@ with import <nixpkgs> {};
   org-export = import (fetchFromGitHub {
     owner = "dustinlacewell";
     repo = "nix-hm-org-export";
-    rev = "a975526d959751c849b07a52f6ef5ff9a66c8610";
-    sha256 = "0idaavjv53lqk4r4rfr3v70ph9r2b2skzl7bim9lig70y8cd2apl";
+    rev = "924c8f094ca8442c82949d5a2671075f4c1aeaf5";
+    sha256 = "1haxvz3qd5bfbd6c63krqvvmnjkk343rawb5v3yviyclh1w6bq60";
   });
 }
