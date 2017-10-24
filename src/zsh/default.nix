@@ -19,7 +19,7 @@
     sessionVariables = {
       EDITOR="nano";
       PATH="$HOME/bin:$PATH";
-    }
+    };
 
     oh-my-zsh = {
       enable = true;
