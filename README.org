@@ -58,7 +58,7 @@ So that you don't need to keep secrets in your configuration ~hm~ will source
 utilize while building your configuration.
 
 This file should probably not directly contain your secrets. We recommend
-instead, utilizing a a tool to manage your secrets. The tool can be used to
+instead, utilizing a tool to manage your secrets. The tool can be used to
 interpolate secret values when the file is sourced. Some options might be:
 
   - GNU Pass: https://www.passwordstore.org/
