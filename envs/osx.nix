@@ -1,25 +1,23 @@
-args@{ config, pkgs, lib, options, ... }:
+{ pkgs, ... }:
 
-let
-  plugins = import <plugins> args;
+with import <plugins>;
 
-  # # export dotfiles readme to github pages
-  dotfiles = plugins.org-export.export {
-    source =../README.org;
-    user = "dustinlacewell";
-    repo = "dotfiles";
-    token = builtins.getEnv "EMACS_D_GITHUB_TOKEN";
-  };
+let plugins = [ org-export ];
 
 in {
-  # enable plugin argument
-  config._module.args.plugins = plugins;
-
-  # import additional definitions
-  imports = [
+  # import additional definitions and plugins
+  imports = plugins ++ [
     ../src/ssh
     ../src/emacs
     ../src/zsh
+    ../src/httpie
+    ../src/aws
+    ../src/fasd
   ];
 
+  home.file."dotfiles.html".source = pkgs.org-export {
+    source =../README.org;
+    user = "dustinlacewell";
+    repo = "dotfiles";
+  };
 }

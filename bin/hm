@@ -12,5 +12,7 @@ if [ "$REAL_LINK" != "$OVERLAY_TARGET" ]; then
     echo "$OVERLAY_SOURCE -> $OVERLAY_TARGET"
 fi
 
+export NIX_PATH="plugins=$HOME/.config/nixpkgs/plugins.nix:$NIX_PATH";
+
 source ~/.secrets
 home-manager -f ~/.config/nixpkgs/envs/$2.nix $1

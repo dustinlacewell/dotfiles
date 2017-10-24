@@ -1,19 +1,22 @@
-args@{ pkgs, plugins, ...}:
+{ pkgs, ... }:
 
 let
-  # export init.org to Github Pages
-  export = plugins.org-export.export {
-    source = ./init.org;
-    user = "dustinlacewell";
-    repo = "emacs.d";
-    token = builtins.getEnv "EMACS_D_GITHUB_TOKEN";
-  };
+  plugins = import <plugins>;
 
 in {
-  # import org-build to load its Options
-  imports = [ plugins.org-build.module ];
+  imports = [
+    plugins.org-build
+    plugins.org-export
+  ];
+
   # ensure that emacs gets installed
   programs.emacs = { enable = true; };
   # compile init.el from init.org
-  programs.emacs.org-build = { enable = true; source = ./init.org; };
+  home.file.".emacs.d/init.el".source = pkgs.org-build { source = ./init.org; };
+  # export init.html from init.org
+  home.file.".emacs.d/init.html".source = pkgs.org-export {
+    source = ./init.org;
+    user = "dustinlacewell";
+    repo = "emacs.d";
+  };
 }
