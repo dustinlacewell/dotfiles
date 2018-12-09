@@ -1,0 +1,3 @@
+[submodule "external/weechat"]
+	path = external/weechat
+	url = git@github.com:dustinlacewell/weechat.git
