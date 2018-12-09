@@ -1,0 +1,187 @@
+/**
+ * ROFI Color theme
+ * User: milouse
+ * Copyright: Étienne Deparis
+ */
+
+* {{
+    background:                  {background};
+    foreground:                  {foreground};
+
+    black:                       {color0};
+    red:                         {color1};
+    green:                       {color2};
+    yellow:                      {color3};
+    blue:                        {color4};
+    purple:                      {color5};
+    cyan:                        {color6};
+    grey:                        {color7};
+
+    light-grey:                  {color8};
+    light-red:                   {color9};
+    light-green:                 {color10};
+    light-yellow:                {color11};
+    light-blue:                  {color12};
+    light-purple:                {color13};
+    light-cyan:                  {color14};
+    white:                       {color15};
+
+    active-background:           @background;
+    active-foreground:           @foreground;
+    alternate-active-background: @active-background;
+    alternate-active-foreground: @active-foreground;
+    alternate-normal-background: @active-background;
+    alternate-normal-foreground: @active-foreground;
+    alternate-urgent-background: @active-background;
+    alternate-urgent-foreground: @active-foreground;
+    background-color:            @background;
+    border-color:                @foreground;
+    bordercolor:                 rgba ( 0, 43, 54, 100 % );
+    lightbg:                     @blue;
+    lightfg:                     @foreground;
+    normal-background:           @background;
+    normal-foreground:           @foreground;
+    selected-active-background:  @blue;
+    selected-active-foreground:  @background;
+    selected-normal-background:  @blue;
+    selected-normal-foreground:  @background;
+    selected-urgent-background:  @blue;
+    selected-urgent-foreground:  @background;
+    separatorcolor:              @background;
+    spacing:                     2;
+    urgent-background:           @background;
+    urgent-foreground:           @foreground;
+    font: "Source Code Pro For Powerline\ 18";
+}}
+
+#window {{
+    background-color: @background;
+    border:           1;
+    width:            100%;
+    padding:          0;
+    location: north west;
+}}
+
+#mainbox {{
+    border:  0;
+    padding: 0;
+}}
+
+#message {{
+    border:       2px 0px 0px ;
+    border-color: @separatorcolor;
+    padding:      1px ;
+}}
+
+#textbox {{
+    text-color: @foreground;
+}}
+
+#listview {{
+    fixed-height: 0;
+    border:       2px 0px 0px ;
+    border-color: @separatorcolor;
+    spacing:      2px ;
+    scrollbar:    true;
+    padding:      2px 0px 0px ;
+}}
+
+#element {{
+    border:  0;
+    padding: 1px ;
+}}
+
+#element.normal.normal {{
+    background-color: @normal-background;
+    text-color:       @normal-foreground;
+}}
+
+#element.normal.urgent {{
+    background-color: @urgent-background;
+    text-color:       @urgent-foreground;
+}}
+
+#element.normal.active {{
+    background-color: @active-background;
+    text-color:       @active-foreground;
+}}
+
+#element.selected.normal {{
+    background-color: @selected-normal-background;
+    text-color:       @selected-normal-foreground;
+}}
+
+#element.selected.urgent {{
+    background-color: @selected-urgent-background;
+    text-color:       @selected-urgent-foreground;
+}}
+
+#element.selected.active {{
+    background-color: @selected-active-background;
+    text-color:       @selected-active-foreground;
+}}
+
+#element.alternate.normal {{
+    background-color: @alternate-normal-background;
+    text-color:       @alternate-normal-foreground;
+}}
+
+#element.alternate.urgent {{
+    background-color: @alternate-urgent-background;
+    text-color:       @alternate-urgent-foreground;
+}}
+
+#element.alternate.active {{
+    background-color: @alternate-active-background;
+    text-color:       @alternate-active-foreground;
+}}
+
+#scrollbar {{
+    width:        4px ;
+    border:       0;
+    handle-width: 8px ;
+    padding:      0;
+}}
+
+#sidebar {{
+    border:       2px 0px 0px ;
+    border-color: @separatorcolor;
+}}
+
+#button.selected {{
+    background-color: @selected-normal-background;
+    text-color:       @selected-normal-foreground;
+}}
+
+#inputbar {{
+    spacing:    0;
+    text-color: @normal-foreground;
+    padding:    1px ;
+    text-size: 32px;
+}}
+
+#case-indicator {{
+    spacing:    0;
+    text-color: @normal-foreground;
+}}
+
+#entry {{
+    spacing:    0;
+    text-color: @normal-foreground;
+}}
+
+#prompt {{
+    spacing:    0;
+    text-color: @normal-foreground;
+}}
+
+#inputbar {{
+    children:   [ prompt,textbox-prompt-colon,entry,case-indicator ];
+}}
+
+#textbox-prompt-colon {{
+    expand:     false;
+    str:        ":";
+    margin:     0px 0.3em 0em 0em ;
+    text-color: @normal-foreground;
+}}

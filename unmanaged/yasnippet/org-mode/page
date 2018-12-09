@@ -1,0 +1,10 @@
+# -*- mode: snippet -*-
+# name: org-hugo-page
+# key: ,page
+# --
+$1
+:properties:
+:export_file_name: $2
+:end:
+
+$0

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=evince
+Comment=PDF Viewer
+Terminal=false
+Exec=evince
+Categories=PDF

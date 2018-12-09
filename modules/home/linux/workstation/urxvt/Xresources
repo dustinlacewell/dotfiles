@@ -1,0 +1,72 @@
+! special
+*.foreground:   {foreground}
+*.background:   {background}
+*.cursorColor:  {foreground}
+
+! black
+*.color0:       {color0}
+*.color8:       {color8}
+
+! red
+*.color1:       {color1}
+*.color9:       {color9}
+
+! green
+*.color2:       {color2}
+*.color10:      {color10}
+
+! yellow
+*.color3:       {color3}
+*.color11:      {color11}
+
+! blue
+*.color4:       {color4}
+*.color12:      {color12}
+
+! magenta
+*.color5:       {color5}
+*.color13:      {color13}
+
+! cyan
+*.color6:       {color6}
+*.color14:      {color14}
+
+! white
+*.color7:       {color7}
+*.color15:      {color15}
+
+XTerm*selectToClipboard: true
+XTerm*termName: xterm-256color
+XTerm*utf8: 1
+XTerm*locale: true
+XTerm*metaSendsEscape: true
+XTerm*faceName: Source Code Pro for Powerline:style=Medium
+XTerm*faceSize: 14
+
+XTerm*charClass: 33:48,36-47:48,58-59:48,61:48,63-64:48,95:48,126:48
+XTerm*on3Clicks: regex ([[:alpha:]]+://)?([[:alnum:]!#+,./=?@_~-]|(%[[:xdigit:]][[:xdigit:]]))+
+*VT100*translations: #override Shift <Btn1Up>: exec-formatted("qutebrowser %t", SELECTION)
+
+Xft*dpi:                    96
+Xft*antialias:              true
+Xft*hinting:                full
+
+! urxvt
+URxvt*buffered: true
+URxvt*cursorBlink: true
+URxvt*underlineColor: #00bfff
+URxvt*font: xft:Source Code Pro For Powerline:size=14:antialias=true:hinting=true
+URxvt*depth: 32
+URxvt*borderless: 1
+URxvt*scrollBar: false
+URxvt*loginShell: true
+Urxvt*secondaryScroll:  true    # Enable Shift-PageUp/Down in screen
+URxvt*saveLines: 9999999
+URxvt*termName: rxvt-unicode
+
+! alt-u to enter, k/j to move, y to yank, enter to open
+URxvt.perl-ext: default,url-select,selection-to-clipboard,fullscreen
+URxvt.keysym.M-space: perl:fullscreen:switch
+URxvt.keysym.M-u: perl:url-select:select_next
+URxvt.url-select.launcher: qutebrowser
+URxvt.url-select.underline: true

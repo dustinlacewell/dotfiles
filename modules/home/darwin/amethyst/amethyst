@@ -1,0 +1,56 @@
+{
+    "layouts": [
+        "tall",
+        "wide",
+        "fullscreen",
+    ],
+    "Valid modifiers are": [
+        "option",
+        "shift",
+        "control",
+        "command"
+    ],
+    "mod1": [
+        "option",
+        "control",
+        "command"
+    ],
+    "mod2": [
+        "option",
+        "control",
+        "command",
+        "shift"
+    ],
+    "cycle-layout": {
+        "mod": "mod1",
+        "key": "space"
+    },
+    "cycle-layout-backward": {
+        "mod": "mod2",
+        "key": "space"
+    },
+    "increase-main": {
+        "mod": "mod1",
+        "key": "i"
+    },
+    "decrease-main": {
+        "mod": "mod1",
+        "key": "m"
+    },
+    "focus-ccw": {
+        "mod": "mod1",
+        "key": "j"
+    },
+    "focus-cw": {
+        "mod": "mod1",
+        "key": "k"
+    },
+    "swap-ccw": {
+        "mod": "mod2",
+        "key": "j"
+    },
+    "swap-cw": {
+        "mod": "mod2",
+        "key": "k"
+    }
+}

@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: nix-env-pkgs
+# key: ,pkgs
+# --
+environment.systemPackages = with pkgs; [ $0 ];

@@ -1,0 +1,12 @@
+# -*- mode: snippet -*-
+# name: org-hugo-index
+# key: ,index
+# --
+* $1 Index
+:properties:
+:export_file_name: _index
+:export_hugo_menu: :menu $2
+:export_hugo_custom_front_matter: :linkTitle $1
+:end:
+
+$0

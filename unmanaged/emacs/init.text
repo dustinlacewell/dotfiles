@@ -1,0 +1,7 @@
+You appear to be setting environment variables ("PATH") in your .bashrc or .zshrc:
+those files are only read by interactive shells, so you should instead set
+environment variables in startup files like .profile, .bash_profile or .zshenv.
+Refer to your shell’s man page for more info.
+
+Customize ‘exec-path-from-shell-arguments’ to remove "-i" when done, or disable
+‘exec-path-from-shell-check-startup-files’ to disable this message.

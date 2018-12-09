@@ -1,0 +1,5 @@
+#!@shell@
+
+source ~/.cache/wal/colors.sh
+
+twmnc --bg "$color1" --fg "$color15" $@

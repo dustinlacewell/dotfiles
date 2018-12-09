@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=qutebrowser
+Comment=Keyboard oriented browser
+Terminal=false
+Exec=qutebrowser
+Categories=Network;WebBrowser
+MimeType=x-scheme-handler/https;x-scheme-handler/http;text/html;

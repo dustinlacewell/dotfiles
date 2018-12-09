@@ -1,0 +1,60 @@
+
+[[https://www.youtube.com/watch?v=1hJQWxx3dqA&feature=youtu.be][https://img.youtube.com/vi/1hJQWxx3dqA/0.jpg]]
+
+* What's this?
+
+I spend a lot of time thinking about "workstation UX". About how good things /could/ be
+for me as a professional computer toucher, if only I could figure out how to automate
+this or that.
+
+I have decided that Nix is the technology that will finally allow me to explore these
+kinds of questions.
+
+This repository contains all the Nix expressions which comprise my personal computing
+workstations and servers. As such, it reflects my own personal "state of the art"
+with regards to the answers to these questions around workstation UX.
+
+* How is it organized?
+
+Brief description of the root directories:
+
+| hosts/     | top-level expressions specific to individual workstations or servers |
+| overlays/  | package and module overrides used throughout the configuration       |
+| modules/   | custom option modules, enabled, or not, by host configuration        |
+| util/      | non-module helper nixlang functions                                  |
+| unmanaged/ | mutable configuration that should not live in the nix store          |
+| external/  | submodules containing additional assets                              |
+| manuals/   | additional documentation files                                       |
+
+* What else can I read?
+
+** [[manuals/CONFIGURATION.org]]
+
+Documents the design and conventions of this repository and its intended
+use. Read this if you want to learn more about Nix.
+
+** [[manuals/WORKSTATION.org]]
+
+Documents the contents of my primary workstation environment covering
+everything including: keyboard layouts, window managers, editors, shell
+configuration and much more. Additionally, this manual addresses the UX
+philosophy driving my choices.
+
+** Additional READMEs
+
+Throughout the repository, supplemental README.org files contain additional
+information relevant to the nearby configuration files.
+
+* I have something to say about this!
+
+Awesome. The vast majority of anything worth a damn in here are things I've
+absorbed from others. If you think there's a better way to do something please
+let me know (so I can steal it ;)
+
+* Credit
+
+Thanks to the =#nixos= community on Freenode, particularly =infinisil= and =clever=
+for holding my hand on many many things.
+
+The nature of this document was definitely inspired by Fox Keister's [[https://github.com/noctuid/dotfiles][dotfile
+repo]].

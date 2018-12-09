@@ -1,0 +1,99 @@
+import random
+import string
+import tempfile
+import subprocess
+
+import sh
+
+from libqtile.config import DropDown, Key, Group, ScratchPad
+from libqtile.command import lazy
+
+
+def random_string():
+    choices = string.ascii_uppercase + string.ascii_lowercase + string.digits
+    return ''.join(random.choice(choices) for _ in range(16))
+
+spotify = sh.playerctl.bake("-p", "spotify")
+
+def make_workspaces(modifiers, names):
+    groups = []
+    keys = []
+    for name in names:
+        # switch to group
+        keys.append(
+            Key(modifiers, name, lazy.group[name].toscreen())
+        )
+        # move tile to group
+        keys.append(
+            Key(modifiers + ["shift"], name, lazy.window.togroup(name))
+        )
+        groups.append(Group(name))
+    return groups, keys
+
+def sh(command):
+    filename = tempfile.NamedTemporaryFile(prefix="qtile-")
+    finished = "twmnc -t \"Success\" -c \"{} finished\"".format(command)
+    error = "twmnc --bg \"#ff0000\" -t \"Error\" -c \"{} failed\"".format(command)
+    less = "less {}".format(filename.name)
+    handler = "((PIPESTATUS[0])) && {} && {}".format(error, less)
+    script = "{} >{} 2>&1 && {}; {}".format(command, filename.name, finished, handler)
+    full = "urxvt -e bash -c '{}'".format(script)
+    with open("/tmp/sh.sh", 'w') as fobj:
+        fobj.write(full)
+    return full
+
+def make_scratchpad(modifiers, *entries):
+    keys = []
+    name = random_string()
+    dropdowns = []
+    for key, command in entries:
+        dd_name = "{}-{}".format(name, key)
+        new_key = Key(modifiers, key, lazy.group[name].dropdown_toggle(dd_name))
+        keys.append(new_key)
+        new_dropdown = DropDown(dd_name, command,
+                                x=0, y=0,
+                                width=0.999, height=0.5)
+        dropdowns.append(new_dropdown)
+    return ScratchPad(name, dropdowns), keys
+
+def xf86_keys(): return [
+    Key([], 'XF86AudioMute', lazy.spawn('mute')),
+    Key([], 'XF86AudioRaiseVolume',
+        lazy.spawn('amixer -c 0 -q set Master 2dB+')),
+    Key([], 'XF86AudioLowerVolume',
+        lazy.spawn('amixer -c 0 -q set Master 2dB-')),
+    Key([], 'XF86AudioPlay',
+        lazy.spawn(spotify('play-pause'))),
+    Key([], 'XF86AudioPrev',
+        lazy.spawn(spotify('previous'))),
+    Key([], 'XF86AudioNext',
+        lazy.spawn(spotify('next'))),
+
+    # backlight controls
+    Key([], "XF86MonBrightnessUp", lazy.spawn("light -A 10")),
+    Key([], "XF86MonBrightnessDown", lazy.spawn("light -U 10")),
+]
+
+def make_keys(base_mods, *entries):
+    keys = []
+    for entry in entries:
+        key, handler = entry[-2:]
+        modifiers = base_mods + list(entry[:-2] if len(entry) > 2 else [])
+        keys.append(Key(modifiers, key, handler))
+    return keys
+
+def make_spawners(base_mods, *entries):
+    keys = []
+    for entry in entries:
+        key, command = entry[-2:]
+        modifiers = base_mods + list(entry[:-2] if len(entry) > 2 else [])
+        keys.append(Key(modifiers, key, lazy.spawn(command)))
+    return keys
+
+def copytext(text):
+    # "primary":
+    xsel_proc = subprocess.Popen(['xsel', '-pi'], stdin=subprocess.PIPE)
+    xsel_proc.communicate(text)
+    # "clipboard":
+    xsel_proc = subprocess.Popen(['xsel', '-bi'], stdin=subprocess.PIPE)
+    xsel_proc.communicate(text)

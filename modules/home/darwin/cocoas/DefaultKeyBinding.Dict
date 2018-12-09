@@ -1,0 +1,25 @@
+{
+  "^ " = setMark:;
+  "^/" = undo:;
+  "^l" = selectParagraph:;
+  "^u" = deleteToBeginningOfParagraph:;
+  "^w" = deleteToMark:;
+  "^x" = {
+    "^x" = swapWithMark:;
+    "^m" = selectToMark:;
+  };
+  "^V" = pageDownAndModifySelection:;
+  "~@" = selectWord:;
+  "~b" = moveWordBackward:;
+  "~c" = (capitalizeWord:, moveForward:, moveForward:);
+  "~d" = deleteWordForward:;
+  "~f" = moveWordForward:;
+  "~l" = (lowercaseWord:, moveForward:, moveForward:);
+  "~r" = centerSelectionInVisibleArea:;
+  "~u" = (uppercaseWord:, moveForward:, moveForward:);
+  "~v" = pageUp:;
+  "~w" = (deleteToMark:, setMark:, yank:, swapWithMark:);
+  "~B" = moveWordForwardAndModifySelection:;
+  "~F" = moveWordForwardAndModifySelection:;
+  "~V" = pageUpAndModifySelection:;
+}

@@ -1,0 +1,16 @@
+# -*- mode: snippet -*-
+# name: python-override
+# key: ,py
+# --
+pkgs: self: super: {
+  $1 = self.buildPythonPackage {
+    name = "$1";
+    src = pkgs.fetchFromGitHub {
+      owner = "$2";
+      repo = "$1";
+      rev = "$0";
+      sha256= "00r6rav6gmyygihaaxwz0fmilz45x4hl39vg1027kpmfs83q4b00";
+    };
+    # doCheck = false;
+  };
+}

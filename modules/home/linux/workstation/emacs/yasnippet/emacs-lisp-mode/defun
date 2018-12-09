@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: defun
+# key: ,fun
+# --
+(defun $1 ($2)
+${3:(interactive)}
+  $0)
+
