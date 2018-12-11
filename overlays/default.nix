@@ -37,11 +37,11 @@ let
     unstable = (import (super.fetchFromGitHub {
       owner = "nixos";
       repo = "nixpkgs-channels";
-      rev = "ca2ba44cab47767c8127d1c8633e2b581644eb8f";
-      sha256 = "1jg7g6cfpw8qvma0y19kwyp549k1qyf11a5sg6hvn6awvmkny47v";
+      rev = "e85c1f586807b5acd244df4c45a5130aa3f0734d";
+      sha256 = "1xy1qgam0i2fyqhaczw0qrx8yv3hgdh9jp47wmln5ljiixr5ic5n";
     })) {
       config = {};
-      overlays = python3 ++ (filteredModules [] ./unstable);
+      overlays = filteredModules [] ./unstable;
     };
   })];
 
