@@ -7,7 +7,7 @@ with lib;
 
   config = mkIf config.mine.zsh.enable {
     home.packages = [
-      pkgs.nano pkgs.unstable.bat pkgs.exa
+      pkgs.nano pkgs.bat pkgs.exa
     ];
 
     programs.zsh = {

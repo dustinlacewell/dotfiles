@@ -5,7 +5,7 @@ with lib;
 
 let
   cfg = config.mine.ranger;
-  deps = pkgs.unstable.callPackage (import ./deps.lib.nix) {};
+  deps = pkgs.callPackage (import ./deps.lib.nix) {};
 
   rc = builtins.replaceStrings
     ["/usr/share"

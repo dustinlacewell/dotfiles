@@ -18,11 +18,11 @@
     aspell aspellDicts.en
     coreutils lsof mkpasswd tree
     pstree  htop
-    git tig unstable.bat
+    git tig bat
     zip unzip unrar
     nixops nix-index
-    unstable.emacs26-nox
+    emacs26-nox
 
-    unstable.lastpass-cli
+    lastpass-cli
   ];
 }

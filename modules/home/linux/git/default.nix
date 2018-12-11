@@ -3,7 +3,7 @@
 with lib;
 
 let
-  deps = pkgs.unstable.callPackage (import ./deps.lib.nix) {};
+  deps = pkgs.callPackage (import ./deps.lib.nix) {};
 
 in {
   options.mine.git.enable = mkEnableOption "git";

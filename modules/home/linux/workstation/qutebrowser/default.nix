@@ -8,19 +8,18 @@ with import <home-manager/modules/lib/dag.nix> { inherit lib; };
 
 let
   cfg = config.mine.workstation.qutebrowser;
-  p3p = pkgs.unstable.python3Packages;
-  deps = pkgs.unstable.callPackage (import ./deps.lib.nix) { };
+  p3p = pkgs.python3Packages;
+  deps = pkgs.callPackage (import ./deps.lib.nix) { };
 
   python = p3p.python.withPackages (ps: qutebrowser.propagatedBuildInputs);
   pythonpath = "${python}/bin:$PATH";
   userscripts-path = "share/qutebrowser/userscripts";
 
-  qutebrowser = pkgs.unstable.qutebrowser.overrideAttrs (old: rec {
+  qutebrowser = pkgs.qutebrowser.overrideAttrs (old: rec {
     name = "myqutebrowser";
     preFixup = ''
       PATH="${pythonpath}" patchShebangs $out/${userscripts-path}
     '';
-    propagatedBuildInputs = old.propagatedBuildInputs ++ [ deps.tldextract ];
   });
 
 in {

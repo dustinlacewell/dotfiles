@@ -6,8 +6,8 @@ with import /nixcfg/util;
 
 let
   cfg = config.mine.workstation.discord;
-  p3p = pkgs.unstable.python3Packages;
-  deps = pkgs.unstable.callPackage (import ./deps.lib.nix)
+  p3p = pkgs.python3Packages;
+  deps = pkgs.callPackage (import ./deps.lib.nix)
     { python3Packages = p3p; };
 
 in {

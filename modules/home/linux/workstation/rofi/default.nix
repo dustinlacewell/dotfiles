@@ -6,7 +6,7 @@ with import /nixcfg/util;
 
 let
   cfg = config.mine.workstation.rofi;
-  deps = pkgs.unstable.callPackage (import ./deps.lib.nix) {};
+  deps = pkgs.callPackage (import ./deps.lib.nix) {};
 
 in {
   options.mine.workstation.rofi.enable = mkEnableOption "rofi";
@@ -20,7 +20,7 @@ in {
       symlink "~/.cache/wal/config.rasi" "~/.config/rofi/config.rasi";
 
     home.packages = [
-      pkgs.unstable.rofi
+      pkgs.rofi
     ];
   };
 }
