@@ -7,7 +7,7 @@
 // @compatible      chrome
 // @icon            https://raw.githubusercontent.com/ParticleCore/Iridium/gh-pages/images/i-icon.png
 // @match           *://www.youtube.com/*
-// @run-at          document-start
+// @run-at          document-end
 // @homepageURL     https://github.com/ParticleCore/Iridium
 // @supportURL      https://github.com/ParticleCore/Iridium/wiki
 // @contributionURL https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=UMVQJJFG4BFHW&lc=US

@@ -16,7 +16,7 @@ c.completion.shrink = True
 # Behaviors
 c.messages.timeout = 6000
 c.confirm_quit = ['always']
-c.downloads.location.directory = "~/downloads/"
+c.downloads.location.directory = "~/dl/"
 c.content.autoplay = False
 c.editor.command = ["emacs", "-nw", "-Q", "{}"]
 c.hints.auto_follow_timeout = 100
@@ -30,7 +30,7 @@ c.new_instance_open_target = 'tab'
 # Display
 c.qt.highdpi = True
 c.window.title_format = 'qutebrowser'
-c.scrolling.bar = True
+c.scrolling.bar = "always"
 c.scrolling.smooth = False
 
 c.spellcheck.languages = ["en-US"]

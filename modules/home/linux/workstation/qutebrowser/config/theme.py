@@ -2,7 +2,7 @@ import os
 from runpy import run_path
 
 
-path = os.path.expanduser("~/.cache/wal/colors.py")
+path = os.path.expanduser("~/.config/wpg/formats/colors.py")
 colors = run_path(path)
 
 bg = colors["background"]

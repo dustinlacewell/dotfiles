@@ -1,3 +1,4 @@
+
 { config, pkgs, lib, ... }:
 
 with lib;
@@ -49,7 +50,7 @@ in {
     mine.workstation.pywal.loadScript = subbedString ''
       @procps@/bin/pgrep -lf qutebrowser
       if [ $? -eq 0 ]; then
-      @qutebrowser@/bin/qutebrowser :config-source
+      @qutebrowser@/bin/qutebrowser ":config-source /nixcfg/modules/home/linux/workstation/qutebrowser/config/theme.py" &
       fi
     '' { qutebrowser = "${qutebrowser}"; procps = "${pkgs.procps}"; };
   };
