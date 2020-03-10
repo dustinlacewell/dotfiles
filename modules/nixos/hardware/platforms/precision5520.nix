@@ -10,9 +10,8 @@ with lib;
     mine.efi = true;
     mine.nvidia = true;
     mine.touchpad = true;
-
+    mine.bluetooth = true;
     sound.enable = true;
 
-    hardware.bluetooth.enable = true;
   };
 }
