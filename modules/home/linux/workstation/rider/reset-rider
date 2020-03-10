@@ -1,0 +1,29 @@
+#!@shell@
+
+## declare array of tools
+declare -a tools=(
+    "Rider"
+    )
+
+for tool in "${tools[@]}"
+do
+    echo "removing evaluation key for $tool"
+    rm -rf ~/.Rider@version@/config/eval
+    rm -rf ~/.java/.userPrefs/jetbrains/${tool,,}
+done
+
+for tool in "${tools[@]}"
+do
+    echo "resetting evalsprt in options.xml for $tool"
+    sed -i '/evlsprt/d' ~/.Rider@version@/config/options/*.xml
+done
+
+echo "resetting evalsprt in prefs.xml"
+sed -i '/evlsprt/d' ~/.java/.userPrefs/prefs.xml
+
+for tool in "${tools[@]}"
+do
+    echo "change date file for $tool"
+    find ~/.Rider@version@ -type d -exec touch -t $(date +"%Y%m%d%H%M") {} +;
+    find ~/.Rider@version@ -type f -exec touch -t $(date +"%Y%m%d%H%M") {} +;
+done
