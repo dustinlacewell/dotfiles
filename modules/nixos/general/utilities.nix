@@ -22,8 +22,9 @@
     zip unzip unrar
     nixops nix-index
     emacs26-nox
-
     dropbox-cli
     lastpass-cli
+
+    ntfs3g
   ];
 }
