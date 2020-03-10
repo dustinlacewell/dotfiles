@@ -23,6 +23,7 @@
     nixops nix-index
     emacs26-nox
 
+    dropbox-cli
     lastpass-cli
   ];
 }
