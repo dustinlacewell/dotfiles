@@ -2,6 +2,7 @@
 
 with lib;
 
+
 let
   cfg = config.mine.workstation.pywal;
   loadScript = pkgs.writeShellScriptBin "wal-regen" cfg.loadScript;
@@ -9,7 +10,9 @@ let
 in {
   options.mine.workstation.pywal = {
     enable = mkEnableOption "workstation.pywal";
-    loadScript = mkOption { type = types.lines; };
+    loadScript = mkOption {
+      type = types.lines;
+    };
     wallpaperPath = mkOption {
       type = types.str;
       default = "~/www/wallpapers";
@@ -18,13 +21,13 @@ in {
 
   config = mkIf cfg.enable {
     mine.workstation.pywal.loadScript = mkBefore ''
-      ${pkgs.unstable.pywal}/bin/wal -i ${cfg.wallpaperPath}
+      wpg -m && wpg -A $(wpg -c) && wpg -s $(wpg -c)
     '';
     xdg.configFile."wal/templates/colors.json".source = ./colors.json;
     xdg.configFile."wal/templates/colors.py".source = ./colors.py;
     home.packages = [
-      pkgs.unstable.pywal
-      pkgs.unstable.neofetch
+      pkgs.pywal
+      pkgs.neofetch
     ] ++ lib.optional (cfg.loadScript != "") loadScript;
   };
 }
