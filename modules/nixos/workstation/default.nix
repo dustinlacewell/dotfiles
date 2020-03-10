@@ -11,20 +11,16 @@ with { cfg = config.mine.workstation; };
 
   config = mkIf cfg.enable {
     services.xserver.enable = true;
-    services.xserver.windowManager.qtile.enable = true;
     services.xserver.desktopManager.xterm.enable = false;
-    services.xserver.desktopManager.xfce = {
-      enable = true;
-      enableXfwm = false;
-      noDesktop = true;
-    };
-
+    services.xserver.windowManager.qtile.enable = true;
+    services.xserver.desktopManager.xfce = { enable = true; enableXfwm = false; noDesktop = true; };
     mine.workstation = enableMultiple [
       "fonts"
       "monitor"
       "networking"
       "power"
       "sound"
+      "steam"
     ];
   };
 }
