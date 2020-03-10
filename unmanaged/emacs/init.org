@@ -84,7 +84,13 @@ data structures.
 
 ** windows paths
 #+begin_src emacs-lisp
-  (when (string-equal system-type "windows-nt") ())
+  (when (string-equal system-type "windows-nt")
+    (defvar my/home-directory (expand-file-name "b:/"))
+    (defvar my/data-directory (concat my/home-directory "Emacs/"))
+    (defvar my/projects-directory (concat my/home-directory "Projects/"))
+    (defvar my/sources-directory (concat my/home-directory "Sources/"))
+    (defvar my/org-directory (concat my/home-directory "Syncthing/Org/"))
+    (defvar my/yas-directory (concat my/data-directory "Yas/")))
 #+end_src
 
 ** utility functions

@@ -32,7 +32,13 @@
   (defvar my/org-directory (concat my/home-directory "org/"))
   (defvar my/yas-directory (concat my/data-directory "yas/")))
 
-(when (string-equal system-type "windows-nt") ())
+(when (string-equal system-type "windows-nt")
+  (defvar my/home-directory (expand-file-name "b:/"))
+  (defvar my/data-directory (concat my/home-directory "Emacs/"))
+  (defvar my/projects-directory (concat my/home-directory "Projects/"))
+  (defvar my/sources-directory (concat my/home-directory "Sources/"))
+  (defvar my/org-directory (concat my/home-directory "Syncthing/Org/"))
+  (defvar my/yas-directory (concat my/data-directory "Yas/")))
 
 (defun my/org-file-name (file-name)
   "Create file-name relative to my/org-directory"
