@@ -7,10 +7,10 @@ clear mod5
 keycode 64 = Control_L
 keycode 37 = Alt_L Meta_L
 keycode 108 = Alt_R Meta_R
-keycode 105 = Hyper_L
+keycode 105 = F13
 keycode 66 = F12
 
 add control = Control_L Control_R
 add mod1 = Alt_L Meta_L Alt_R Meta_R
 add mod4 = Super_L
-add mod5 = Hyper_L
+
