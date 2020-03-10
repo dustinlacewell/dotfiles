@@ -544,8 +544,9 @@
                                             (f-glob (my/source-directory "*/*.org")))))
 
 (eval `(use-package org-super-agenda
-        :straight (org-super-agenda :local-repo ,(my/source-directory "org-super-agenda"))
-        :config (org-super-agenda-mode)))
+         ;; :straight (org-super-agenda
+         ;;            :local-repo ,(my/source-directory "org-super-agenda"))
+         :config (org-super-agenda-mode)))
 
 (defun org-agenda-transformer (it)
   (-let* (((blank todo rest) (s-split-up-to
@@ -626,7 +627,8 @@
                           (:discard (:anything t)))))))))))
 
 (eval `(use-package linkmarks
-   :straight (linkmarks :type git :local-repo ,(my/project-directory "linkmarks/") :files ("linkmarks.el"))))
+   ;; :straight (linkmarks :type git :local-repo ,(my/project-directory "linkmarks/") :files ("linkmarks.el"))
+   ))
 
 (use-package outshine
   :init (defvar outline-minor-mode-prefix "\M-#")
@@ -635,11 +637,13 @@
 
 (eval `(use-package org-ql
    :demand t
-   :straight (org-ql :type git :local-repo ,(my/source-directory "org-ql"))))
+   ;; :straight (org-ql :type git :local-repo ,(my/source-directory "org-ql"))
+   ))
 
 (eval `(use-package org-olp
    :demand t
-   :straight (org-olp :type git :local-repo ,(my/project-directory "org-olp"))))
+   ;; :straight (org-olp :type git :local-repo ,(my/project-directory "org-olp"))
+   ))
 
 (defun get-candidates (filename query)
   (let* ((headlines (eval `(org-ql ,filename ,query)))
@@ -935,7 +939,7 @@ context-help to false"
         (next-line)))))
 
 (eval `(use-package nix-mode
-   :straight (nix-mode :type git :local-repo ,(my/source-directory "nix-mode"))
+   ;; :straight (nix-mode :type git :local-repo ,(my/source-directory "nix-mode"))
                                         ;:straight (nix-mode :type git :host github :repo "NixOS/nix-mode")
    :config
    (add-to-list 'auto-mode-alist '("\\.nix?\\'" . nix-mode))
@@ -1559,45 +1563,3 @@ context-help to false"
   (add-to-list 'exec-path "/nix/var/nix/profiles/default/bin")
   (add-to-list 'exec-path (expand-file-name "~/.nix-profile/bin"))
   (add-to-list 'auto-mode-alist '("\\.fs[iylx]?$" . fsharp-mode)))
-
-(set-face-attribute
- 'helm-selection nil
- :inherit t
- :background (theme-color 'blue)
- :foreground (theme-color 'background)
- :height 1.0
- :weight 'ultra-bold
- :inverse-video nil)
-
-(set-face-attribute
- 'helm-source-header nil
- :inherit nil
- :underline nil
- :background (theme-color 'background)
- :foreground (theme-color 'light-red)
- :height 1.9)
-
-(set-face-attribute
- 'helm-header nil
- :inherit nil
- :height 0.8
- :background (theme-color 'background)
- :foreground (theme-color 'cyan))
-
-(set-face-attribute
- 'helm-separator nil
- :height 0.8
- :foreground (theme-color 'light-red))
-
-(set-face-attribute
- 'helm-match nil
- :weight 'bold
- :foreground (theme-color 'green))
-
-(enable-theme 'xresources)
-
-)
-
-(when (string-equal system-type "windows-nt")
-
-)

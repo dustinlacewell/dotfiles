@@ -850,8 +850,9 @@ headings.
                                               (f-glob (my/source-directory "*/*.org")))))
 
   (eval `(use-package org-super-agenda
-          :straight (org-super-agenda :local-repo ,(my/source-directory "org-super-agenda"))
-          :config (org-super-agenda-mode)))
+           ;; :straight (org-super-agenda
+           ;;            :local-repo ,(my/source-directory "org-super-agenda"))
+           :config (org-super-agenda-mode)))
 
   (defun org-agenda-transformer (it)
     (-let* (((blank todo rest) (s-split-up-to
@@ -936,7 +937,8 @@ headings.
 ** linkmarks
 #+begin_src emacs-lisp
   (eval `(use-package linkmarks
-     :straight (linkmarks :type git :local-repo ,(my/project-directory "linkmarks/") :files ("linkmarks.el"))))
+     ;; :straight (linkmarks :type git :local-repo ,(my/project-directory "linkmarks/") :files ("linkmarks.el"))
+     ))
 #+end_src
 
 ** outshine
@@ -952,11 +954,13 @@ Outshine provides org-mode like functionality in other files like elisp source.
 #+begin_src emacs-lisp
   (eval `(use-package org-ql
      :demand t
-     :straight (org-ql :type git :local-repo ,(my/source-directory "org-ql"))))
+     ;; :straight (org-ql :type git :local-repo ,(my/source-directory "org-ql"))
+     ))
 
   (eval `(use-package org-olp
      :demand t
-     :straight (org-olp :type git :local-repo ,(my/project-directory "org-olp"))))
+     ;; :straight (org-olp :type git :local-repo ,(my/project-directory "org-olp"))
+     ))
 
   (defun get-candidates (filename query)
     (let* ((headlines (eval `(org-ql ,filename ,query)))
@@ -1404,7 +1408,7 @@ All the internet uses it.
 **** install
 #+begin_src emacs-lisp
   (eval `(use-package nix-mode
-     :straight (nix-mode :type git :local-repo ,(my/source-directory "nix-mode"))
+     ;; :straight (nix-mode :type git :local-repo ,(my/source-directory "nix-mode"))
                                           ;:straight (nix-mode :type git :host github :repo "NixOS/nix-mode")
      :config
      (add-to-list 'auto-mode-alist '("\\.nix?\\'" . nix-mode))
