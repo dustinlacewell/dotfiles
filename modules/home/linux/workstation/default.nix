@@ -13,21 +13,29 @@ with import /nixcfg/util;
       mpv
       pqiv
       spotify
+      (wine.override { wineBuild = "wineWow"; })
     ];
 
     mine.workstation = enableMultiple [
       "autocutsel"
+      "browser-sync"
+      "cdda"
       "discord"
       "emacs"
       "evince"
       "imgur-screenshot"
+      "postman"
+      "pycharm"
       "pywal"
       "qtile"
       "qutebrowser"
       "recap"
       "rofi"
+      "rider"
       "twmn"
       "urxvt"
+      "wpgtk"
+      "vscode"
     ];
   };
 }
