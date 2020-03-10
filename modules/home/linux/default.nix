@@ -25,13 +25,17 @@ with { cfg = config.mine; };
     mine = mkIf cfg.enable (enableMultiple [
       "workstation"
       "aws-cli"
+      "dotnet"
       "git"
       "golang"
       "httpie"
+      "mycli"
       "ranger"
       "ssh"
       "tig"
       "weechat"
+      "summon"
+      "terraform"
       "zsh"
     ]);
   };
