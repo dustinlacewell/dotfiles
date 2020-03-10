@@ -1,23 +1,12 @@
 self: super: with super;
 
 let
-  iwlib = self.pythonPackages.buildPythonPackage {
-    name = "iwlib";
-    src = pkgs.fetchFromGitHub {
-      owner = "nathan-hoad";
-      repo = "python-iwlib";
-      rev = "f7604de0a27709fca139c4bada58263bdce4f08e";
-      sha256= "1pjxvf9kjn362jsczkggvll4l8988xis1fy9rp9ayzhy9p4wsvds";
-    };
-    doCheck = false;
-
-    propagatedBuildInputs = [ self.pythonPackages.cffi self.wirelesstools ];
+  utils = import /nixcfg/util;
+  nixpkgs = utils.fetchNixpkgs {
+    owner = "avnik";
+    rev    = "b05f12a76e8f4ab98d23915a179de57996d12ae7";
+    sha256 = "1mm0mb83dxb92lhggr36nxqx9ml8y33xwpmzgbzq89n8inijacsp";
   };
-
 in {
-  qtile = (qtile.overrideAttrs (oldAttrs: rec {
-    name = "my-qtile";
-    buildInputs = oldAttrs.buildInputs ++ [ dbus iwlib super.pythonPackages.sh ];
-    propagatedBuildInputs = [ iwlib super.pythonPackages.sh ];
-  }));
+  qtile = nixpkgs.qtile;
 }

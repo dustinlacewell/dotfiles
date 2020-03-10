@@ -18,7 +18,7 @@ class O(object):
             output = self.active
         except CalledProcessError:
             output = self.inactive
-        except Exception, e:
+        except Exception as e:
             output = str(e)
         return output
 

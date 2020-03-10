@@ -43,7 +43,6 @@ keys = keys + make_keys(
     ("space", lazy.next_layout()),                      # cycle layouts
     ("q", lazy.window.kill()),                          # kill window
     ("r", lazy.restart()),                              # restart qtile
-    ("w", lazy.function(theme.regen)),
     ("shift", "l", lazy.shutdown()),                    # kill qtile
 
     # floating management
@@ -64,4 +63,15 @@ keys = keys + make_keys(
     ("m", lazy.layout.shrink()),                        # decrease tile size
     ("n", lazy.layout.normalize()),                     # equalize tiles
     ("o", lazy.layout.maximize()),                      # maximize tile
+
+    # theme
+    ("w", lazy.function(theme.regen)),
+    ("shift", "w", lazy.spawn("wpg-reset")),
+    ("shift", "a", lazy.function(theme.reload)),
+    ("Down", lazy.spawn("wpg-desaturate")),
+    ("shift", "Up", lazy.spawn("wpg-brighten")),
+    ("shift", "Down", lazy.spawn("wpg-darken")),
+    ("Up", lazy.spawn("wpg-saturate")),
+    ("Left", lazy.spawn("wpg-normalize")),
+    ("Right", lazy.spawn("wpg-shuffle")),
 )

@@ -3,7 +3,6 @@ from libqtile.widget import CurrentLayoutIcon
 from lib.theme import theme
 
 
-currentlayout = theme.r(
-    CurrentLayoutIcon,
+currentlayout = CurrentLayoutIcon(
     scale=.85,
-    foreground="{{foreground}}")
+    foreground="#FFFFFF")

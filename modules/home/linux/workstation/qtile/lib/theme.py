@@ -111,13 +111,18 @@ def get_theme(filename):
 
 class PywalTheme(Theme):
 
-    def reload(self):
-        data = get_theme("~/.cache/wal/colors.py")
+    def reload(self, *args):
+        data = get_theme("~/.config/wpg/formats/colors.py")
+        logger.error("WTFFF")
         self.update(data)
 
     def regen(self, _):
-        if util.call('wal-regen'):
+        try:
+            util.call('wal-regen')
+        except Exception as e:
+            logger.error(e)
+        finally:
             self.reload()
 
 
-theme = PywalTheme(get_theme("~/.cache/wal/colors.py"))
+theme = PywalTheme(get_theme("~/.config/wpg/formats/colors.py"))

@@ -18,5 +18,5 @@ keys = make_spawners(
 
     ('F12', "rofi -show run"),
     ("quoteleft", "pkill -fn ffmpeg"),
-    ("Return", 'urxvt -e ranger'),
+    ("Return", 'urxvt-bordered -e ranger'),
 )

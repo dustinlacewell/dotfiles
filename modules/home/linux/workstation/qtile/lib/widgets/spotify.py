@@ -18,7 +18,7 @@ class Spotify(base.InLoopPollText):
         super(Spotify, self).__init__(*args, **kwargs)
 
     def info(self, query):
-        return output("playerctl -p spotify " + query)
+        return output("playerctl -p spotify " + query).decode('utf-8').strip()
 
     def copy_metadata(self):
         url = self.info("metadata xesam:url")
@@ -42,10 +42,12 @@ class Spotify(base.InLoopPollText):
             if self.layout.colour != self.old_colour:
                 self.bar.draw()
                 self.old_color = self.layout.colour
-            return "🎶 {} by {}".format(title, artist)
+            if title and artist:
+                return u"🎶 {} by {}".format(title, artist)
+            return u""
         except CalledProcessError:
-            return ""
-        except Exception, e:
+            return u""
+        except Exception as e:
             return str(e)
 
 

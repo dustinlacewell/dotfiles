@@ -13,7 +13,7 @@ layout_settings = dict(
 )
 
 layouts = [
-    Columns(num_columns=1, autosplit=False, **layout_settings),
+    Columns(num_columns=1, split=False, **layout_settings),
     MonadTall(**layout_settings),
     MonadWide(**layout_settings),
 ]
