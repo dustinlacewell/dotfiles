@@ -1,7 +1,0 @@
-# -*- mode: snippet -*-
-# name: use-package
-# key: ,use
-# --
-(use-package $1
-  ${2: :straight ($1 :type git ${3::host github :repo "$4/$5"} ${6::local-repo "$7/$8"} )}
-  ${9::config $10})
