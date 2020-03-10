@@ -17,7 +17,7 @@ in {
     };
 
     home.activation.rofi =
-      symlink "~/.cache/wal/config.rasi" "~/.config/rofi/config.rasi";
+      symlink "~/.config/wpg/formats/config.rasi" "~/.config/rofi/config.rasi";
 
     home.packages = [
       pkgs.rofi
