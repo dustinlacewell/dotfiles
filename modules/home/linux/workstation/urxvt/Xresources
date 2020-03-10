@@ -35,34 +35,31 @@
 *.color7:       {color7}
 *.color15:      {color15}
 
-XTerm*selectToClipboard: true
-XTerm*termName: xterm-256color
-XTerm*utf8: 1
-XTerm*locale: true
-XTerm*metaSendsEscape: true
-XTerm*faceName: Source Code Pro for Powerline:style=Medium
-XTerm*faceSize: 14
-
-XTerm*charClass: 33:48,36-47:48,58-59:48,61:48,63-64:48,95:48,126:48
-XTerm*on3Clicks: regex ([[:alpha:]]+://)?([[:alnum:]!#+,./=?@_~-]|(%[[:xdigit:]][[:xdigit:]]))+
-*VT100*translations: #override Shift <Btn1Up>: exec-formatted("qutebrowser %t", SELECTION)
-
-Xft*dpi:                    96
-Xft*antialias:              true
-Xft*hinting:                full
+Xft.antialias:              true
+Xft.rgba:                   rgb
+Xft.hinting:                true
+Xft.hintstyle:              hintslight
 
 ! urxvt
-URxvt*buffered: true
-URxvt*cursorBlink: true
-URxvt*underlineColor: #00bfff
-URxvt*font: xft:Source Code Pro For Powerline:size=14:antialias=true:hinting=true
+URxvt*termName: rxvt-unicode-256color
 URxvt*depth: 32
+URxvt*buffered: true
+URxvt.letterSpace: true
+URxvt*font: xft:Source Code Pro for Powerline:size=16,xft:EmojiOne Color:size=18,xft:Symbola:size=18
+
+URxvt*transparent: true
+URxvt*shading: 7
+URxvt*inheritPixmap: true
+
+
+URxvt*cursorBlink: true
+URxvt*underlineColor: {foreground}
+URxvt.internalBorder: 0
 URxvt*borderless: 1
 URxvt*scrollBar: false
 URxvt*loginShell: true
 Urxvt*secondaryScroll:  true    # Enable Shift-PageUp/Down in screen
 URxvt*saveLines: 9999999
-URxvt*termName: rxvt-unicode
 
 ! alt-u to enter, k/j to move, y to yank, enter to open
 URxvt.perl-ext: default,url-select,selection-to-clipboard,fullscreen
