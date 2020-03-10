@@ -1,8 +1,3 @@
-(with-eval-after-load 'org
-  (setq org-confirm-babel-evaluate nil)
-  (setq org-confirm-shell-link-function nil)
-  (setq org-confirm-elisp-link-function nil))
-
 ;;; -*- lexical-binding: t; -*-
 
 (let ((bootstrap-file (concat user-emacs-directory "straight/repos/straight.el/bootstrap.el"))
@@ -21,18 +16,27 @@
 (use-package git) ;; ensure we can install from git sources
 
 (require 'cl)
-(use-package dash :config (require 'dash))    ;; lists
-(use-package ht :config (require 'ht))        ;; hash-tables
-(use-package s :config (require 's))          ;; strings
-(use-package a :config (require 'a))          ;; association lists
+(use-package f :demand t)          ;; files
+(use-package dash :demand t)       ;; lists
+(use-package ht :demand t)         ;; hash-tables
+(use-package s :demand t)          ;; strings
+(use-package a :demand t)          ;; association lists
+(use-package anaphora :demand t)   ;; anaphora
+;; (eval `(use-package ecl :demand t :straight (ecl :type git :local-repo ,(my/project-directory "ecl"))))
 
-(defvar my/org-path-name
-  (expand-file-name "~/org/")
-  "Root path-name for org-mode files")
+(when (string-equal system-type "gnu/linux")
+  (defvar my/home-directory (expand-file-name "~/"))
+  (defvar my/data-directory (concat my/home-directory ".emacs.d/"))
+  (defvar my/projects-directory (concat my/home-directory "src/"))
+  (defvar my/sources-directory (concat my/home-directory "ext/"))
+  (defvar my/org-directory (concat my/home-directory "org/"))
+  (defvar my/yas-directory (concat my/data-directory "yas/")))
+
+(when (string-equal system-type "windows-nt") ())
 
 (defun my/org-file-name (file-name)
-  "Create file-name relative to my/org-path-name"
-  (concat my/org-path-name file-name))
+  "Create file-name relative to my/org-directory"
+  (concat my/org-directory file-name))
 
 (defvar my/notes-file-name
   (my/org-file-name "notes.org")
@@ -42,37 +46,20 @@
   (my/org-file-name "bookmarks.org")
   "Main bookmarks file-name")
 
-(setq-default my/template-directory (concat my/org-path-name "templates/"))
+(setq-default my/template-directory (concat my/org-directory "templates/"))
 
 (defun my/template-file-name (file-name)
   "Create file-name relative to my/template-directory"
   (concat my/template-directory file-name))
 
-(setq-default my/project-root (expand-file-name "~/src/"))
-
 (defun my/project-directory (name)
-  (concat my/project-root name))
+  (concat my/projects-directory name))
+
+(defun my/source-directory (name)
+  (concat my/sources-directory name))
 
 (setq browse-url-browser-function 'browse-url-chrome)
 (setq browse-url-chrome-program "qutebrowser")
-
-(setq exec-path-from-shell-check-startup-files nil)
-
-(load-file "/home/ldlework/.emacs.d/theme.el")
-(enable-theme 'xresources)
-
-(defun theme-callback (event)
-  (load-file "~/.cache/wal/theme.el")
-  (set-eyeliner-colors)
-  (eyeliner/install)
-  (enable-theme 'xresources))
-
-(require 'filenotify)
-(file-notify-add-watch
-  "/home/ldlework/.cache/wal/theme.el" '(change) 'theme-callback)
-
-(setq powerline-height 32)
-(set-face-attribute 'default nil :family "Source Code Pro" :weight 'light)
 
 (set-face-foreground 'vertical-border "gray")
 
@@ -211,51 +198,48 @@
 (use-package company
   :config (add-hook 'after-init-hook 'global-company-mode))
 
-(setq ispell-program-name (expand-file-name "~/.nix-profile/bin/aspell"))
-
 (fset 'yes-or-no-p 'y-or-n-p)
 
-(defun set-eyeliner-colors ()
-  (setq buffer-name-color "#ff0000")
-  (setq buffer-name-modified-color "#ff0000")
-  (setq eyeliner/warm-color (theme-color 'red))
-  (setq eyeliner/cool-color (theme-color 'cyan))
-  (setq eyeliner/plain-color (theme-color 'foreground))
-  (custom-set-faces
-   `(powerline-active0
-     ((t (:background ,(theme-color 'foreground)))))
-   `(powerline-inactive0
-     ((t (:background ,(theme-color 'foreground)))))
-   `(powerline-active1
-     ((t (:background ,(theme-color 'foreground)
-                      :foreground ,(theme-color 'background)))))
-   `(powerline-inactive1
-     ((t (:background ,(theme-color 'foreground)
-                      :foreground ,(theme-color 'background)))))
-   `(powerline-active2
-     ((t (:background ,(theme-color 'background)))))
-   `(powerline-inactive2
-     ((t (:background ,(theme-color 'background)))))))
+;; (defun set-eyeliner-colors ()
+;;   (setq buffer-name-color "#ff0000")
+;;   (setq buffer-name-modified-color "#ff0000")
+;;   (setq eyeliner/warm-color (theme-color 'red))
+;;   (setq eyeliner/cool-color (theme-color 'cyan))
+;;   (setq eyeliner/plain-color (theme-color 'foreground))
+;;   (custom-set-faces
+;;    `(powerline-active0
+;;      ((t (:background ,(theme-color 'foreground)))))
+;;    `(powerline-inactive0
+;;      ((t (:background ,(theme-color 'foreground)))))
+;;    `(powerline-active1
+;;      ((t (:background ,(theme-color 'foreground)
+;;                       :foreground ,(theme-color 'background)))))
+;;    `(powerline-inactive1
+;;      ((t (:background ,(theme-color 'foreground)
+;;                       :foreground ,(theme-color 'background)))))
+;;    `(powerline-active2
+;;      ((t (:background ,(theme-color 'background)))))
+;;    `(powerline-inactive2
+;;      ((t (:background ,(theme-color 'background)))))))
 
-(use-package eyeliner
-  ;; :straight (eyeliner :type git :host github :repo "dustinlacewell/eyeliner")
-  :straight (eyeliner :local-repo "~/src/eyeliner")
-  :config
-  (require 'eyeliner)
-  (spaceline-helm-mode 1)
-  (set-eyeliner-colors)
-  (eyeliner/install))
+;; (eval `(use-package eyeliner
+;;    ;; :straight (eyeliner :type git :host github :repo "dustinlacewell/eyeliner")
+;;    :demand t
+;;    :straight (eyeliner :local-repo ,(my/project-directory "eyeliner"))
+;;    :config
+;;    (spaceline-helm-mode 1)
+;;    (set-eyeliner-colors)
+;;    (eyeliner/install)))
 
 (setq debug-on-error t)
 
-(use-package prodigy)
-(prodigy-define-service
-  :name "Hugo Personal Blog"
-  :command "hugo"
-  :args '("server" "-D" "--navigateToChanged")
-  :cwd "~/blog/"
-  :stop-signal 'sigkill
-  :kill-process-buffer-on-stop t)
+(use-package helpful :straight (helpful :type git :host github :repo "Wilfred/helpful"))
+
+(use-package helpful
+    :straight (helpful :type git :host github :repo "Wilfred/helpful")
+    :bind (("C-h f" . #'helpful-callable)
+           ("C-h v" . #'helpful-variable)
+           ("C-h k" . #'helpful-key)))
 
 (defun fix-org-git-version ()
   "The Git version of org-mode.
@@ -284,21 +268,20 @@
                "HEAD")))))
 
 (use-package org
+  :demand t
   :mode ("\\.org\\'" . org-mode)
   :config
-  ;; This forces straight to load the package immediately in an attempt to avoid the
-  ;; Org that ships with Emacs.
-  (require 'org)
-
   ;; these depend on the 'straight.el fixes' above
   (defalias #'org-git-version #'fix-org-git-version)
   (defalias #'org-release #'fix-org-release)
-
-  ;; Enable org capture
+  (require 'org-habit)
   (require 'org-capture)
-
-  ;; Enable templates like <s
   (require 'org-tempo))
+
+(progn
+  (setq org-confirm-babel-evaluate nil)
+  (setq org-confirm-elisp-link-function nil)
+  (setq org-confirm-shell-link-function nil))
 
 (with-eval-after-load 'org
   (add-hook 'org-mode-hook #'org-indent-mode))
@@ -307,9 +290,6 @@
   :after (org)
   :config
   (add-hook 'org-mode-hook 'org-bullets-mode))
-
-(with-eval-after-load 'org
-  (setq org-todo-keywords '((sequence "TODO" "DOING" "|" "DONE"))))
 
 (with-eval-after-load 'org
   (defun nougat/org-pretty-compose-p (start end match)
@@ -326,11 +306,7 @@
    (lambda ()
      (setq-local prettify-symbols-compose-predicate #'nougat/org-pretty-compose-p)
      (setq-local prettify-symbols-alist
-                 '(("[#A]" . ?↟)
-                   ("[#C]" . ?↡)
-                   ("TODO" . ?…)
-                   ("DOING". ?⏩)
-                   ("DONE". ?✔))))))
+                 (todo-prettify-symbols-alist todo-keywords)))))
 
 (with-eval-after-load 'org
   (setq org-ellipsis " ▿"))
@@ -381,6 +357,128 @@
 
 (setq org-startup-folded 'content)
 
+(setq todo-keywords
+      ;; normal workflow
+      '((("TODO" "t"
+          :icon "… "
+          :face org-todo-face)
+
+         ("DOING" "d"
+          :icon "🏃"
+          :face org-doing-face)
+
+         ("DONE" "D"
+          :icon "✓ "
+          :face org-done-face
+          :done-state t))
+
+        ;; auxillary states
+        (("SOON" "s"
+          :icon "❗ "
+          :face org-soon-face)
+
+         ("SOMEDAY" "S"
+          :icon "🛌"
+          :face org-doing-face))))
+
+
+;; parsing
+
+(defun todo-make-state-model (name key props)
+  (append (list :name name :key key) props))
+
+(defun todo-parse-state-data (state-data)
+  (-let* (((name second &rest) state-data)
+          ((key props) (if (stringp second)
+                           (list second (cddr state-data))
+                         (list nil (cdr state-data)))))
+    (todo-make-state-model name key props)))
+
+(defun todo-make-sequence-model (states)
+  (mapcar 'todo-parse-state-data states))
+
+(defun todo-parse-sequences-data (sequences-data)
+  (mapcar 'todo-make-sequence-model sequences-data))
+
+
+;; org-todo-keywords
+
+(defun todo-keyword-name (name key)
+  (if key (format "%s(%s)" name key) name))
+
+(defun todo-keyword-name-for-state (state)
+  (todo-keyword-name (plist-get state :name)
+                     (plist-get state :key)))
+
+(defun todo-is-done-state (state)
+  (equal t (plist-get state :done-state)))
+
+(defun todo-is-not-done-state (state)
+  (equal nil (plist-get state :done-state)))
+
+(defun todo-org-sequence (states)
+  (let ((active (seq-filter 'todo-is-not-done-state states))
+        (inactive (seq-filter 'todo-is-done-state states)))
+    (append '(sequence)
+            (mapcar 'todo-keyword-name-for-state active)
+            '("|")
+            (mapcar 'todo-keyword-name-for-state inactive))))
+
+(defun todo-org-todo-keywords (sequences)
+  (mapcar 'todo-org-sequence (todo-parse-sequences-data sequences)))
+;; (todo-org-todo-keywords todo-keywords)
+
+
+(with-eval-after-load 'org
+  (setq org-todo-keywords (todo-org-todo-keywords todo-keywords)))
+
+
+(defun todo-org-todo-keyword-faces (sequences)
+  (cl-loop for sequence in (todo-parse-sequences-data sequences)
+           append (cl-loop for state in sequence
+                           for name = (plist-get state :name)
+                           for face = (plist-get state :face)
+                           collect (cons name face))))
+;; (todo-org-todo-keyword-faces todo-keywords)
+
+(with-eval-after-load 'org
+  (setq org-todo-keyword-faces (todo-org-todo-keyword-faces todo-keywords)))
+
+(defun todo-prettify-symbols-alist (sequences)
+  (cl-loop for sequence in (todo-parse-sequences-data sequences)
+           append (cl-loop for state in sequence
+                           for name = (plist-get state :name)
+                           for icon = (plist-get state :icon)
+                           collect (cons name icon))))
+;; (todo-prettify-symbols-alist todo-keywords)
+
+(defun todo-finalize-agenda-for-state (state)
+  (-let (((&plist :name :icon :face) state))
+    (beginning-of-buffer)
+    (while (search-forward name nil 1)
+      (let* ((line-props (text-properties-at (point)))
+             (line-props (ecl-plist-remove line-props 'face)))
+        (call-interactively 'set-mark-command)
+        (search-backward name)
+        (call-interactively 'kill-region)
+        (let ((symbol-pos (point)))
+          (insert icon)
+          (beginning-of-line)
+          (let ((start (point))
+                (end (progn (end-of-line) (point))))
+            (add-text-properties start end line-props)
+            (add-face-text-property symbol-pos (+ 1 symbol-pos) face))))))
+  (beginning-of-buffer)
+  (replace-regexp "[[:space:]]+[=]+" ""))
+
+(defun todo-finalize-agenda ()
+  (--each (todo-parse-sequences-data todo-keywords)
+    (-each it 'todo-finalize-agenda-for-state)))
+
+(add-hook 'org-agenda-finalize-hook 'todo-finalize-agenda)
+
+
+
 (with-eval-after-load 'org
   (org-babel-do-load-languages
    'org-babel-load-languages
@@ -398,8 +496,30 @@
           (:tangle . "no"))))
 
 (with-eval-after-load 'org
-  (setq org-default-notes-file
-        (expand-file-name "~/org/notes.org")))
+  (setq org-confirm-babel-evaluate nil)
+  (setq org-confirm-shell-link-function nil)
+  (setq org-confirm-elisp-link-function nil))
+
+(use-package org-projectile
+  :config
+  (progn
+    (org-projectile-per-project)
+    (setq org-projectile-per-project-filepath "notes.org")
+    (add-to-list 'org-capture-templates
+                 (org-projectile-project-todo-entry
+                  :capture-character "l"
+                  :capture-heading "Linked Project TODO"))
+    (add-to-list 'org-capture-templates
+                 (org-projectile-project-todo-entry
+                  :capture-character "p"))
+    (setq org-confirm-elisp-link-function nil)))
+
+(use-package org-projectile-helm
+  :after org-projectile
+  :bind (("C-c n p" . org-projectile-helm-template-or-project)))
+
+(with-eval-after-load 'org
+  (setq org-default-notes-file (my/org-file-name "inbox.org")))
 
 (with-eval-after-load 'org
   (global-set-key (kbd "C-c c") 'org-capture))
@@ -407,25 +527,113 @@
 (with-eval-after-load 'org
   (add-to-list 'org-capture-after-finalize-hook 'org-capture-goto-last-stored))
 
-(setq org-agenda-prefix-format
-      (quote ((agenda . " %i %-12:c%?-12t% s")
-              (timeline . "  % s")
-              (todo .
-                    " %i %-12:c %(concat \"[ \"(org-format-outline-path (org-get-outline-path)) \" ]\") ")
-              (tags .
-                    " %i %-12:c %(concat \"[ \"(org-format-outline-path (org-get-outline-path)) \" ]\") ")
-              (search . " %i %-12:c"))))
 
-(use-package linkmarks
-  :straight (linkmarks :type git :local-repo "~/src/linkmarks/" :files ("linkmarks.el")))
 
-(use-package org-ql
-  :straight (org-ql :type git :host github :repo "alphapapa/org-ql"))
+(setq org-directory my/org-directory
+      org-agenda-todo-keyword-format ""
+      org-agenda-prefix-format '((todo . "  %(org-get-todo-state)"))
+      org-agenda-files (-filter 'f-exists? (append
+                                            (f-glob (my/org-file-name "*.org"))
+                                            (f-glob (my/project-directory "*/*.org"))
+                                            (f-glob (my/source-directory "*/*.org")))))
 
-(use-package org-olp
-  :straight (org-olp :type git :local-repo "~/src/org-olp")
-  :config (require 'org-olp))
+(eval `(use-package org-super-agenda
+        :straight (org-super-agenda :local-repo ,(my/source-directory "org-super-agenda"))
+        :config (org-super-agenda-mode)))
 
+(defun org-agenda-transformer (it)
+  (-let* (((blank todo rest) (s-split-up-to
+                              "[[:blank:]]+"
+                              (substring-no-properties it) 2))
+          (project-name (->> it
+                             (get-text-property 0 'org-marker)
+                             (marker-buffer)
+                             (buffer-file-name)
+                             (f-parent)
+                             (f-base)))
+          it)
+    (format "  %s %s / %s" todo project-name rest)))
+
+(setq org-agenda-custom-commands
+      (list
+       (quote
+        ("a" "agenda view"
+         ((agenda "" ((org-agenda-span 'day)
+                      (org-super-agenda-groups
+                       '((:name "Today"
+                                :time-grid t
+                                :date today
+                                :todo "TODAY"
+                                :scheduled today
+                                :order 1)))))
+          (alltodo "" ((org-agenda-overriding-header "")
+                       (org-super-agenda-groups
+                        '((:name "Active"
+                                 :todo "DOING"
+                                 :order 1
+                                 :transformer (org-agenda-transformer it))
+                          (:name "Important"
+                                 :tag "Important"
+                                 :priority "A"
+                                 :order 6)
+                          (:name "Due Today"
+                                 :deadline today
+                                 :order 2)
+                          (:name "Overdue"
+                                 :deadline past
+                                 :order 7)
+                          (:name "Assignments"
+                                 :tag "Assignment"
+                                 :order 10)
+                          (:name "Issues"
+                                 :tag "Issue"
+                                 :order 12)
+                          (:name "Done"
+                                 :todo "DONE")
+                          (:discard (:anything t))))))
+
+          (alltodo "" ((org-agenda-overriding-header "")
+                       (org-super-agenda-groups
+                        '((:auto-group-map
+                           (lambda (item)
+                             (-when-let* ((marker (or (get-text-property 0 'org-marker item)
+                                                      (get-text-property 0 'org-hd-marker item)))
+                                          (file-path (->> marker marker-buffer buffer-file-name))
+                                          (parent (f-dirname file-path))
+                                          (type (f-dirname parent)))
+                               (when (equal "src" (f-filename type))
+                                 (f-filename parent)))))
+                          (:discard (:anything t))))))
+          (alltodo "" ((org-agenda-overriding-header "")
+                       (org-super-agenda-groups
+                        '((:auto-group-map
+                           (lambda (item)
+                             (if (-contains? (get-text-property 0 'tags item) "mine")
+                                 (-when-let* ((marker (or (get-text-property 0 'org-marker item)
+                                                          (get-text-property 0 'org-hd-marker item)))
+                                              (file-path (->> marker marker-buffer buffer-file-name))
+                                              (parent (f-dirname file-path))
+                                              (type (f-dirname parent)))
+                                   ;; TODO this wont work on windows, use variables
+                                   (when (equal "ext" (f-filename type))
+                                     (f-filename parent))))))
+                          (:discard (:anything t)))))))))))
+
+(eval `(use-package linkmarks
+   :straight (linkmarks :type git :local-repo ,(my/project-directory "linkmarks/") :files ("linkmarks.el"))))
+
+(use-package outshine
+  :init (defvar outline-minor-mode-prefix "\M-#")
+  :config (setq outshine-use-speed-commands t)
+  :hook ((emacs-lisp-mode . outshine-mode) (nix-mode . outshine-mode)))
+
+(eval `(use-package org-ql
+   :demand t
+   :straight (org-ql :type git :local-repo ,(my/source-directory "org-ql"))))
+
+(eval `(use-package org-olp
+   :demand t
+   :straight (org-olp :type git :local-repo ,(my/project-directory "org-olp"))))
 
 (defun get-candidates (filename query)
   (let* ((headlines (eval `(org-ql ,filename ,query)))
@@ -441,7 +649,7 @@
              for label = (string-join olp " / ")
              collect (list label item))))
 
-;; (get-candidates "~/org/notes.org" '(todo "TODO"))
+;; (get-candidates (my/org-file-name "notes.org") '(todo "TODO"))
 
 (defun select-candidate (filename query)
   (let* ((candidates (get-candidates filename query)))
@@ -450,7 +658,7 @@
                  :candidates candidates
                  :fuzzy-match t)))))
 
-;; (select-candidate "~/org/notes.org" '(todo "TODO"))
+;; (select-candidate (my/org-file-name "notes.org") '(todo "TODO"))
 
 (defun visit-candidate (filename query)
   (let ((selection (select-candidate filename query)))
@@ -474,8 +682,9 @@
   (projectile-mode t))
 
 (projectile-discover-projects-in-directory
- (file-name-as-directory
-  (expand-file-name "~/src")))
+ (file-name-as-directory my/projects-directory))
+(projectile-discover-projects-in-directory
+ (file-name-as-directory my/sources-directory))
 
 (use-package helm
   :config
@@ -536,82 +745,17 @@
       (seq-filter (lambda (v) (not (string-match "^\\." v)))
                   (helm-external-commands-list-1 'sort)))
 
-(set-face-attribute
- 'helm-selection nil
- :inherit t
- :background (theme-color 'blue)
- :foreground (theme-color 'background)
- :height 1.0
- :weight 'ultra-bold
- :inverse-video nil)
-
-(set-face-attribute
- 'helm-source-header nil
- :inherit nil
- :underline nil
- :background (theme-color 'background)
- :foreground (theme-color 'light-red)
- :height 1.9)
-
-(set-face-attribute
- 'helm-header nil
- :inherit nil
- :height 0.8
- :background (theme-color 'background)
- :foreground (theme-color 'cyan))
-
-(set-face-attribute
- 'helm-separator nil
- :height 0.8
- :foreground (theme-color 'light-red))
-
-(set-face-attribute
- 'helm-match nil
- :weight 'bold
- :foreground (theme-color 'green))
-
 (use-package magit
+  :demand t
   :config
-  (require 'magit)
   (global-set-key (kbd "C-x g") 'magit-status))
 
-(defun advice-unadvice (sym)
-  "Remove all advices from symbol SYM."
-  (interactive "aFunction symbol: ")
-  (advice-mapc (lambda (advice _props) (advice-remove sym advice)) sym))
+;; (use-package closql)
+;; (use-package forge
+;;   :demand t
+;;   :straight (forge :type git :host github :repo "magit/forge" :files ("lisp/*.el")))
 
-(defun elfeed-font-size-hook ()
-  (buffer-face-set '(:height 1.35)))
-
-(defun elfeed-visual-fill-hook ()
-  (visual-fill-column-mode--enable))
-
-(defun elfeed-show-refresh-advice (entry)
-  (elfeed-font-size-hook)
-  (visual-fill-column-mode 1)
-  (setq word-wrap 1)
-  (elfeed-show-refresh))
-
-(defun elfeed-show ()
-  (interactive)
-  (elfeed)
-  (delete-other-windows))
-
-(use-package elfeed
-  :bind (("C-x w" . elfeed-show))
-  :config
-  (add-hook 'elfeed-search-update-hook 'elfeed-font-size-hook)
-  (advice-unadvice 'elfeed-show-entry)
-  (advice-add 'elfeed-show-entry :after 'elfeed-show-refresh-advice))
-
-(use-package elfeed-org
-  :after (elfeed)
-  :config
-  (elfeed-org)
-  (setq rmh-elfeed-org-files (list "~/org/notes.org")))
-
-(use-package flycheck
-  :config (global-flycheck-mode))
+(use-package flycheck)
 
 (defun toggle-context-help ()
   "Turn on or off the context help.
@@ -666,31 +810,11 @@ context-help to false"
 
 (use-package elpy)
 
-(use-package jedi
-  :init
-  (progn
-    (add-hook 'python-mode-hook 'jedi:setup)
-    (setq jedi:complete-on-dot t)))
-
 (use-package typescript-mode)
 
-(defun setup-tide-mode ()
-  (interactive)
-  (tide-setup)
-  (flycheck-mode +1)
-  (setq flycheck-check-syntax-automatically '(save mode-enabled))
-  (eldoc-mode +1)
-  (tide-hl-identifier-mode +1)
-  (company-mode +1))
-
-(use-package tide
-  :config
-  (add-hook 'before-save-hook 'tide-format-before-save)
-  (add-hook 'typescript-mode-hook #'setup-tide-mode))
-
 (use-package web-mode
+  :demand t
   :config
-  (require 'web-mode)
   (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))
   (add-to-list 'auto-mode-alist '("\\.html?\\'" . web-mode))
   (setq web-mode-engines-alist
@@ -703,14 +827,9 @@ context-help to false"
   (flycheck-add-mode 'typescript-tslint 'web-mode))
 
 (use-package yaml-mode
+  :demand t
   :config
-  (require 'yaml-mode)
   (add-to-list 'auto-mode-alist '("\\.yml\\'" . yaml-mode)))
-
-(with-eval-after-load 'fsharp-mode
-  (add-to-list 'exec-path "/nix/var/nix/profiles/default/bin")
-  (add-to-list 'exec-path (expand-file-name "~/.nix-profile/bin"))
-  (add-to-list 'auto-mode-alist '("\\.fs[iylx]?$" . fsharp-mode)))
 
 (use-package less-css-mode)
 
@@ -725,9 +844,19 @@ context-help to false"
                       (setq tab-width 4)
                       (setq indent-tabs-mode 1))))
 
+;; (eval `(use-package sutysisku
+;;    :demand t
+;;    :straight (sutysisku :local-repo ,(my/project-directory "sutysisku.el/"))))
+
+(use-package rec-mode
+  :straight (rec-mode :type git :repo "https://git.savannah.gnu.org/git/recutils.git" :files ("etc/rec-mode.el")))
+
+(defun rec-books-save-hook ()
+  (message (buffer-name)))
+
 (use-package dockerfile-mode
+  :demand t
   :config
-  (require 'dockerfile-mode)
   (add-to-list 'auto-mode-alist '("Dockerfile\\'" . dockerfile-mode)))
 
 (defun nix-mode-make-regexp (parts)
@@ -799,52 +928,50 @@ context-help to false"
           (nix-indent-line))
         (next-line)))))
 
-(use-package nix-mode
-  :straight (nix-mode :type git :local-repo "~/src/nix-mode")
-  ;:straight (nix-mode :type git :host github :repo "NixOS/nix-mode")
-  :config
-  (add-to-list 'auto-mode-alist '("\\.nix?\\'" . nix-mode))
-  (add-hook 'before-save-hook #'nix-mode-format)
-  (define-key nix-mode-map (kbd "TAB") 'nix-indent-line)
-  (setq nix-indent-function 'nix-indent-line)
-  (defalias
-    #'nix-indent-expression-start
-    #'fixed-nix-indent-expression-start))
+(eval `(use-package nix-mode
+   :straight (nix-mode :type git :local-repo ,(my/source-directory "nix-mode"))
+                                        ;:straight (nix-mode :type git :host github :repo "NixOS/nix-mode")
+   :config
+   (add-to-list 'auto-mode-alist '("\\.nix?\\'" . nix-mode))
+   (add-hook 'before-save-hook #'nix-mode-format)
+   (define-key nix-mode-map (kbd "TAB") 'nix-indent-line)
+   (setq nix-indent-function 'nix-indent-line)
+   (defalias
+     #'nix-indent-expression-start
+     #'fixed-nix-indent-expression-start)))
 
 (use-package nix-sandbox)
 
 (use-package yasnippet
   :config
-  (setq yas-snippet-dirs '("/nixcfg/unmanaged/yasnippet/"))
+  (setq yas-snippet-dirs '(my/yas-directory))
   (yas-global-mode 1))
 
 (use-package hydra)
 
 (use-package pretty-hydra
+  :demand t
   :straight (pretty-hydra :type git :host github
                           :repo "jerrypnz/major-mode-hydra.el"
-                          :files ("pretty-hydra.el"))
-  :config
-  (require 'pretty-hydra))
+                          :files ("pretty-hydra.el")))
 
 (use-package major-mode-hydra
+  :demand t
   :straight (major-mode-hydra
              :type git :host github
              :repo "jerrypnz/major-mode-hydra.el"
              :files ("major-mode-hydra.el"))
   :config
-  (require 'major-mode-hydra)
   (global-set-key (kbd "C-<f19>") 'majorb-mode-hydra))
 
 (use-package hera
-  :straight (hera :type git :host github :repo "dustinlacewell/hera")
-  :config
-  (require 'hera))
+  :demand t
+  :straight (hera :type git :host github :repo "dustinlacewell/hera"))
 
 (defun nougat--inject-hint (symbol hint)
   (-let* ((name (symbol-name symbol))
           (hint-symbol (intern (format "%s/hint" name)))
-          (format-form (cadr (eval hint-symbol)))
+          (format-form (eval hint-symbol))
           (string-cdr (nthcdr 1 format-form))
           (format-string (string-trim (car string-cdr)))
           (amended-string (format "%s\n\n%s" format-string hint)))
@@ -911,14 +1038,12 @@ context-help to false"
 (defun my/hydra-dwim ()
   (interactive)
   (-let (((&alist major-mode mode) major-mode-hydra--body-cache))
-    (if mode (progn
-               (push 'hydra-default/body hera--stack)
-               (major-mode-hydra))
+    (if mode (major-mode-hydra)
       (hera-start 'hydra-default/body))))
 
 (setq kbd-hera-pop "<f12>")
-(global-set-key (kbd "<f12>") 'my/hydra-dwim)
-(global-set-key (kbd "M-<f12>") (lambda () (interactive) (hera-start 'hydra-default/body)))
+(global-set-key (kbd "<f13>") 'my/hydra-dwim)
+(global-set-key (kbd "<f12>") (lambda () (interactive) (hera-start 'hydra-default/body)))
 
 (require 'seq)
 
@@ -951,7 +1076,7 @@ context-help to false"
   (interactive)
   (save-excursion
     (with-temp-buffer
-      (insert-file-contents "~/org/bookmarks.org")
+      (insert-file-contents (my/org-file-name "bookmarks.org"))
       (org-mode)
       (outline-show-all)
       (beginning-of-buffer)
@@ -970,7 +1095,7 @@ context-help to false"
     (ignore-errors (org-capture))))
 
 (setq helm-org-bm-entry
-      '("t" "Bookmark" entry (file "~/org/bookmarks.org")
+      '("t" "Bookmark" entry (file (my/org-file-name "bookmarks.org"))
         "* %^{Title}\n[[%?]]\n  added: %U" '(:kill-buffer)))
 
 (setq helm-org-bm-actions
@@ -1042,10 +1167,8 @@ context-help to false"
                             (projectile-current-project-files))))
       (find-file (concat (projectile-project-root) "/" file-name))))
 
-(use-package helm-projectile
+(use-package helm-projectile :demand t
   :config
-  (require 'helm-projectile)
-
   (defun projectile-dwim ()
     (interactive)
     (if (string= "-" (projectile-project-name))
@@ -1055,14 +1178,12 @@ context-help to false"
   (nougat-hydra hydra-projectile (:color blue)
     ("Open"
      (("f" (helm-projectile-find-file-dwim) "file")
-      ("r" (helm-projectile-recentf) "recent")
       ("p" (helm-projectile-switch-project) "project")
-      ("d" (helm-projectile-find-dir) "directory")
-      ("b" (helm-projectile-switch-to-buffer) "switch")
-      ("R" (projectile-readme) "README"))
-     "Search"
-     (("o" (projectile-multi-occur) "occur")
-      ("g" (projectile-ag) "grep"))
+      ("b" (helm-projectile-switch-to-buffer) "buffer")
+      ("w" (hydra-treemacs/body) "workspace"))
+     "Do"
+     (("s" (call-interactively 'helm-projectile-ag) "search")
+      ("c" (org-projectile-helm-template-or-project) "capture"))
      "Cache"
      (("C" projectile-invalidate-cache "clear")
       ("x" (projectile-remove-known-project) "remove project")
@@ -1220,39 +1341,85 @@ context-help to false"
     ("v" avy-org-goto-heading-timer "avy")
     ("L" org-toggle-link-display "toggle links"))))
 
-;; (use-package spot4e
-;;   :straight (spot4e :type git :host github :local-repo "~/src/spot4e")
-;;   :config
-;;   (setq spot4e-refresh-token "AQDA5zMq9Juoi76685iFALQWp17uWpZVTCPCqTMI2rZFUwX-lmH7Z9idbhPM-SBbTXYWYNyL9pwgEoazggQXZe3kpeavxS4DJYdg5d-5pHKRYpv_jZLx2vUr1pIxZvcz8_k")
-;;   (setq spot4e-access-token nil)
-;;   (run-with-timer 0 (* 60 59) 'spot4e-refresh))
+(use-package org-brain
+  :config
+  (setq org-id-track-globally t)
+  (setq org-brain-visualize-default-choices 'all)
+  (setq org-brain-title-max-length 12)
+  (setq org-brain-include-file-entries t
+        org-brain-file-entries-use-title t))
 
-;; (spot4e-authorize)
+(use-package treemacs
+  :demand t
+  :config (progn
+          (setq treemacs-width 25)
+          (global-set-key (kbd "M-<f12>") 'treemacs)
+          (define-key treemacs-mode-map [mouse-1] #'treemacs-single-click-expand-action)
+          (setq treemacs-project-follow-cleanup t)
+          (setq treemacs-is-never-other-window t)))
 
-;; (pretty-hydra-define hydra-spotify (:color red :hint nil)
-;;   ("Player" (("h" (spot4e-player-next) "next")
-;;              ("l" (spot4e-player-previous) "previous")
-;;              ("j" (spot4e-player-pause) "pause")
-;;              ("k" (spot4e-player-play) "play")
-;;              ("v" (spot4e-set-volume) "volume"))
+(setq treemacs-icon-open-png   (propertize "⊖ " 'face 'treemacs-directory-face)
+      treemacs-icon-closed-png (propertize "⊕ " 'face 'treemacs-directory-face))
 
-;;    "Search" (("t" (spot4e-helm-search-tracks) "tracks")
-;;              ("a" (spot4e-helm-search-artists) "artists" :push t)
-;;              ("A" (spot4e-helm-search-albums ) "albums")
-;;              ("r" (spot4e-helm-search-recent-tracks ) "recent")
-;;              ("c" (spot4e-helm-search-categories) "categories")))
-;;   (("<f19>" (hera-pop) "nil" :color blue)
-;;    ("R" (spot4e-refresh) "nil" :color red)))
+(use-package treemacs-projectile)
+(use-package treemacs-magit)
 
-;; (hydra-spotify/body)
+(nougat-hydra hydra-treemacs (:color red)
+  ("Workspace"
+   (("o" treemacs-switch-workspace "open")
+    ("n" treemacs-create-workspace "new")
+    ("k" treemacs-delete-workspace "kill")
+    ("r" treemacs-rename-workspace "rename"))))
+
+(defun advice-unadvice (sym)
+  "Remove all advices from symbol SYM."
+  (interactive "aFunction symbol: ")
+  (advice-mapc (lambda (advice _props) (advice-remove sym advice)) sym))
+
+(defun elfeed-font-size-hook ()
+  (buffer-face-set '(:height 1.35)))
+
+(defun elfeed-visual-fill-hook ()
+  (visual-fill-column-mode--enable))
+
+(defun elfeed-show-refresh-advice (entry)
+  (elfeed-font-size-hook)
+  (visual-fill-column-mode 1)
+  (setq word-wrap 1)
+  (elfeed-show-refresh))
+
+(defun elfeed-show ()
+  (interactive)
+  (elfeed)
+  (delete-other-windows))
+
+(use-package elfeed
+  :bind (("C-x w" . elfeed-show))
+  :config
+  (add-hook 'elfeed-search-update-hook 'elfeed-font-size-hook)
+  (advice-unadvice 'elfeed-show-entry)
+  (advice-add 'elfeed-show-entry :after 'elfeed-show-refresh-advice))
+
+(use-package elfeed-org
+  :after (elfeed)
+  :config
+  (elfeed-org)
+  (setq rmh-elfeed-org-files (list (my/org-file-name "notes.org"))))
 
 (use-package demo-it
   :straight (demo-it :type git :host github :repo "howardabrams/demo-it"))
 
-(use-package ox-hugo
-  :straight (ox-hugo :type git :host github :repo "kaushalmodi/ox-hugo")
-  :after ox
-  :config (require 'ox-hugo-auto-export))
+(use-package gist
+  :straight (gist :type git :host github :repo "defunkt/gist.el"))
+
+
+(nougat-hydra hydra-gist (:color blue)
+  ("Gist" (("p" (gist-region-or-buffer) "public")
+           ("P" (gist-region-or-buffer-private) "private")
+           ("b" (browse-url "https://gist.github.com/dustinlacewell") "browse"))))
+
+(use-package poker
+  :straight (poker :type git :host github :repo "mlang/poker.el"))
 
 (setq ep-notes-file (my/org-file-name "notes.org"))
 
@@ -1286,18 +1453,145 @@ context-help to false"
           '("Software" "Emacs" "Packages")) "emacs packages"))))
 
 (nougat-hydra hydra-default (:color blue)
-  ("Editing"
-   (("p" (hera-push 'hydra-projectile/body) "projectile")
-    ("R" (hera-push 'hydra-registers/body) "registers")
-    ("m" (hera-push 'hydra-mark/body) "mark")
+  ("Open"
+   (("a" (org-agenda nil "a") "agenda")
+    ("p" (hera-push 'hydra-projectile/body) "projectile")
+    ("c" (org-capture) "capture")
     ("b" (hera-push 'hydra-bookmarks/body) "bookmarks"))
-   "UI"
-   (("w" (hera-push 'hydra-window/body) "windows")
-    ("z" (hera-push 'hydra-zoom/body) "zoom"))
-   "Help"
-   (("h" (hera-push 'hydra-help/body) "help"))
+   "Emacs" (
+            ("h" (hera-push 'hydra-help/body) "help")
+            ("m" (hera-push 'hydra-mark/body) "mark")
+            ("w" (hera-push 'hydra-window/body) "windows")
+            ("z" (hera-push 'hydra-zoom/body) "zoom")
+            ("r" (hera-push 'hydra-registers/body) "registers"))
    "Misc"
    (("n" (hera-push 'hydra-notes/body) "notes")
-    ("r" (helm-run-external-command) "run"))))
+    ("g" (hera-push 'hydra-gist/body) "gist")
+    ("l" (progn (setq this-command 'sutysisku-search-helm)
+                (call-interactively 'sutysisku-search-helm)) "lojban"))))
+
+(defhydra hydra-default (:color blue :hint nil)
+  "
+
+            Entrypoint Hydra
+
+"
+  ("a" (org-agenda nil "a") "agenda" :column "Open")
+  ("p" (hera-push 'hydra-projectile/body) "projectile")
+  ("c" (org-capture) "capture")
+  ("b" (hera-push 'hydra-bookmarks/body) "bookmarks")
+  ("h" (hera-push 'hydra-help/body) "help" :column "Emacs")
+  ("m" (hera-push 'hydra-mark/body) "mark")
+  ("w" (hera-push 'hydra-window/body) "windows")
+  ("z" (hera-push 'hydra-zoom/body) "zoom")
+  ("R" (hera-push 'hydra-registers/body) "registers")
+  ("n" (hera-push 'hydra-notes/body) "notes" :column "Misc")
+  ("s" (call-interactively 'helm-imenu) "semantic")
+  ("g" (hera-push 'hydra-gist/body) "gist")
+  ("l" (progn (setq this-command 'sutysisku-search-helm)
+              (call-interactively 'sutysisku-search-helm)) "lojban"))
+
+(when (string-equal system-type "gnu/linux")
+
+(setq exec-path-from-shell-check-startup-files nil)
+
+(load-file "/home/ldlework/.emacs.d/theme.el")
+(enable-theme 'xresources)
+
+(defun theme-callback (event)
+  (load-file "~/.config/wpg/formats/theme.el")
+  (set-eyeliner-colors)
+  (eyeliner/install)
+  (enable-theme 'xresources))
+
+(require 'filenotify)
+(setq theme-watch-handle
+      (file-notify-add-watch
+       "/home/ldlework/.config/wpg/formats/theme.el" '(change) 'theme-callback))
+
+(setq powerline-height 32)
+(set-face-attribute 'default nil :family "Source Code Pro" :weight 'light)
+
+(use-package unicode-fonts
+  :config
+  (unicode-fonts-setup)
+  (set-face-attribute 'default nil :font "Source Code Pro")
+  ;(set-fontset-font "fontset-default" 'unicode "Consolas" nil)
+  (set-fontset-font "fontset-default" 'unicode "DejaVu Sans Mono" nil)
+  (set-fontset-font "fontset-default" 'unicode "Symbola" nil)
+ )
+
+(setq ispell-program-name (concat my/home-directory ".nix-profile/bin/aspell"))
+
+(use-package jedi
+  :init
+  (progn
+    (add-hook 'python-mode-hook 'jedi:setup)
+    (setq jedi:complete-on-dot t)))
+
+(defun setup-tide-mode ()
+  (interactive)
+  (tide-setup)
+  (flycheck-mode +1)
+  (setq flycheck-check-syntax-automatically '(save mode-enabled))
+  (eldoc-mode +1)
+  (tide-hl-identifier-mode +1)
+  (company-mode +1))
+
+(use-package tide
+  :config
+  (add-hook 'before-save-hook 'tide-format-before-save)
+  (add-hook 'typescript-mode-hook #'setup-tide-mode)
+  (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))
+  (add-hook 'web-mode-hook
+            (lambda ()
+              (when (string-equal "tsx" (file-name-extension buffer-file-name))
+                (setup-tide-mode))))
+  (flycheck-add-mode 'typescript-tslint 'web-mode))
+
+(with-eval-after-load 'fsharp-mode
+  (add-to-list 'exec-path "/nix/var/nix/profiles/default/bin")
+  (add-to-list 'exec-path (expand-file-name "~/.nix-profile/bin"))
+  (add-to-list 'auto-mode-alist '("\\.fs[iylx]?$" . fsharp-mode)))
+
+(set-face-attribute
+ 'helm-selection nil
+ :inherit t
+ :background (theme-color 'blue)
+ :foreground (theme-color 'background)
+ :height 1.0
+ :weight 'ultra-bold
+ :inverse-video nil)
+
+(set-face-attribute
+ 'helm-source-header nil
+ :inherit nil
+ :underline nil
+ :background (theme-color 'background)
+ :foreground (theme-color 'light-red)
+ :height 1.9)
+
+(set-face-attribute
+ 'helm-header nil
+ :inherit nil
+ :height 0.8
+ :background (theme-color 'background)
+ :foreground (theme-color 'cyan))
+
+(set-face-attribute
+ 'helm-separator nil
+ :height 0.8
+ :foreground (theme-color 'light-red))
+
+(set-face-attribute
+ 'helm-match nil
+ :weight 'bold
+ :foreground (theme-color 'green))
 
 (enable-theme 'xresources)
+
+)
+
+(when (string-equal system-type "windows-nt")
+
+)
