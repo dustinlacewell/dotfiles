@@ -8,7 +8,7 @@ with lib;
   config = mkIf config.mine.workstation.autocutsel.enable {
     systemd.user.services."autocutsel" = {
       Unit = {
-        Description = "Network Manager applet";
+        Description = "Autocutsel";
         After = [ "graphical-session-pre.target" ];
         PartOf = [ "graphical-session.target" ];
       };
