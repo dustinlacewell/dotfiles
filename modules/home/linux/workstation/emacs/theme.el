@@ -107,10 +107,21 @@
       (light-cyan (theme-color 'light-cyan))
       (white (theme-color 'white)))
   (set-mouse-color foreground)
+
+  ;; new faces
+  (cl-loop
+   for (face . spec) in
+   `((org-todo-face . ((t (:bold t :foreground ,(set-saturation red 1) :weight bold))))
+     (org-doing-face . ((t (:bold t :foreground ,(set-saturation blue 1) :weight bold))))
+     (org-done-face . ((t (:bold t :foreground ,(set-saturation green 1) :weight bold))))
+     (org-soon-face . ((t (:bold t :foreground ,(set-saturation yellow 1) :weight bold))))
+     (org-someday-face . ((t (:bold t :foreground ,(set-saturation magenta 1) :weight bold)))))
+   do (face-spec-set face spec))
+
+   ;; built-in faces
   (custom-theme-set-faces
    'xresources
 
-   ;; Built-in
    ;; basic coloring
    '(button ((t (:underline t))))
    `(link ((t (:foreground ,yellow :underline t :weight bold))))
@@ -188,14 +199,14 @@
    `(font-lock-regexp-grouping-backslash ((t (:foreground ,green :weight bold))))
    `(font-lock-string-face ((t (:foreground ,red))))
    `(font-lock-type-face ((t (:foreground ,blue))))
-   `(font-lock-variable-name-face ((t (:foreground ,light-gray))))
+   `(font-lock-variable-name-face ((t (:foreground ,cyan :weight bold))))
    `(font-lock-warning-face ((t (:foreground ,yellow :weight bold))))
    `(c-annotation-face ((t (:inherit font-lock-constant-face))))
 
+   ;; Third-party
+
    ;; which-function-mode
    `(which-func ((t (:foreground ,blue))))
-
-   ;; Third-party
 
    ;; ace-jump
    `(ace-jump-face-background
@@ -203,43 +214,15 @@
    `(ace-jump-face-foreground
      ((t (:foreground ,green :background ,background :inverse-video nil))))
 
-   ;; auctex
-   `(font-latex-bold-face ((t (:inherit bold))))
-   `(font-latex-warning-face ((t (:foreground nil :inherit font-lock-warning-face))))
-   `(font-latex-sectioning-5-face ((t (:foreground ,red :weight bold ))))
-   `(font-latex-sedate-face ((t (:foreground ,yellow))))
-   `(font-latex-italic-face ((t (:foreground ,cyan :slant italic))))
-   `(font-latex-string-face ((t (:inherit ,font-lock-string-face))))
-   `(font-latex-math-face ((t (:foreground ,red))))
-
-   ;; auto-complete
-   `(ac-candidate-face ((t (:background ,foreground :foreground ,background))))
-   `(ac-selection-face ((t (:background ,blue :foreground ,foreground))))
-   `(popup-tip-face ((t (:background ,yellow :foreground ,background))))
-   `(popup-scroll-bar-foreground-face ((t (:background ,blue))))
-   `(popup-scroll-bar-background-face ((t (:background ,background))))
-   `(popup-isearch-match ((t (:background ,background :foreground ,foreground))))
-
    ;; company-mode
-   `(company-tooltip ((t (:foreground ,foreground :background ,background))))
-   `(company-tooltip-selection ((t (:foreground ,foreground :background ,background))))
-   `(company-tooltip-mouse ((t (:background ,background))))
-   `(company-tooltip-common ((t (:foreground ,green))))
-   `(company-tooltip-common-selection ((t (:foreground ,green))))
-   `(company-scrollbar-fg ((t (:background ,background))))
-   `(company-scrollbar-bg ((t (:background ,background))))
+   `(company-tooltip ((t (:foreground ,background :background ,foreground))))
+   `(company-tooltip-selection ((t (:foreground ,background :background ,light-blue))))
+   `(company-tooltip-common ((t (:foreground ,background :bold))))
+   `(company-tooltip-common-selection ((t (:foreground ,background :bold))))
+   `(company-scrollbar-fg ((t (:background ,light-green))))
+   `(company-scrollbar-bg ((t (:background ,light-gray))))
    `(company-preview ((t (:background ,green))))
    `(company-preview-common ((t (:foreground ,green :background ,background))))
-
-   ;; clojure-test-mode
-   `(clojure-test-failure-face ((t (:foreground ,red :weight bold :underline t))))
-   `(clojure-test-error-face ((t (:foreground ,red :weight bold :underline t))))
-   `(clojure-test-success-face ((t (:foreground ,green :weight bold :underline t))))
-
-   ;; cperl-mode
-   `(cperl-array-face ((t (:foreground ,yellow))))
-   `(cperl-hash-face ((t (:foreground ,cyan))))
-   `(cperl-nonoverridable-face ((t (:foreground ,light-magenta))))
 
    ;; diff
    `(diff-added ((t (:foreground ,green :background nil))
@@ -531,9 +514,6 @@
    `(rainbow-delimiters-depth-7-face ((t (:foreground ,yellow))))
    `(rainbow-delimiters-depth-8-face ((t (:foreground ,green))))
    `(rainbow-delimiters-depth-9-face ((t (:foreground ,blue))))
-   `(rainbow-delimiters-depth-10-face ((t (:foreground ,red))))
-   `(rainbow-delimiters-depth-11-face ((t (:foreground ,green))))
-   `(rainbow-delimiters-depth-12-face ((t (:foreground ,blue))))
 
    ;; sh-mode
    `(sh-heredoc     ((t (:foreground ,yellow :bold t))))
