@@ -11,7 +11,10 @@ with lib;
       fonts = with pkgs; [
         powerline-fonts
         source-code-pro
-        twemoji-color-font
+        noto-fonts
+        noto-fonts-emoji
+        noto-fonts-extra
+        symbola
       ];
     };
   };
