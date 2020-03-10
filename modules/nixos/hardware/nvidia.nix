@@ -15,6 +15,8 @@ with lib;
       pmMethod = "none";
     };
 
+    hardware.opengl.driSupport32Bit = true;
+
     environment.systemPackages = with pkgs; [
       nvme-cli
     ];
