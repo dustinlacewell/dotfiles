@@ -937,8 +937,9 @@ headings.
 ** linkmarks
 #+begin_src emacs-lisp
   (eval `(use-package linkmarks
-     ;; :straight (linkmarks :type git :local-repo ,(my/project-directory "linkmarks/") :files ("linkmarks.el"))
-     ))
+           :straight (eyeliner :type git :host github :repo "dustinlacewell/linkmarks"
+           ;; :straight (linkmarks :type git :local-repo ,(my/project-directory "linkmarks/") :files ("linkmarks.el"))
+           ))
 #+end_src
 
 ** outshine

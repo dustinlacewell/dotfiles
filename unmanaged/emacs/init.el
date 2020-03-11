@@ -627,8 +627,9 @@
                           (:discard (:anything t)))))))))))
 
 (eval `(use-package linkmarks
-   ;; :straight (linkmarks :type git :local-repo ,(my/project-directory "linkmarks/") :files ("linkmarks.el"))
-   ))
+         :straight (eyeliner :type git :host github :repo "dustinlacewell/linkmarks"
+         ;; :straight (linkmarks :type git :local-repo ,(my/project-directory "linkmarks/") :files ("linkmarks.el"))
+         ))
 
 (use-package outshine
   :init (defvar outline-minor-mode-prefix "\M-#")
@@ -1563,3 +1564,45 @@ context-help to false"
   (add-to-list 'exec-path "/nix/var/nix/profiles/default/bin")
   (add-to-list 'exec-path (expand-file-name "~/.nix-profile/bin"))
   (add-to-list 'auto-mode-alist '("\\.fs[iylx]?$" . fsharp-mode)))
+
+(set-face-attribute
+ 'helm-selection nil
+ :inherit t
+ :background (theme-color 'blue)
+ :foreground (theme-color 'background)
+ :height 1.0
+ :weight 'ultra-bold
+ :inverse-video nil)
+
+(set-face-attribute
+ 'helm-source-header nil
+ :inherit nil
+ :underline nil
+ :background (theme-color 'background)
+ :foreground (theme-color 'light-red)
+ :height 1.9)
+
+(set-face-attribute
+ 'helm-header nil
+ :inherit nil
+ :height 0.8
+ :background (theme-color 'background)
+ :foreground (theme-color 'cyan))
+
+(set-face-attribute
+ 'helm-separator nil
+ :height 0.8
+ :foreground (theme-color 'light-red))
+
+(set-face-attribute
+ 'helm-match nil
+ :weight 'bold
+ :foreground (theme-color 'green))
+
+(enable-theme 'xresources)
+
+)
+
+(when (string-equal system-type "windows-nt")
+
+)
