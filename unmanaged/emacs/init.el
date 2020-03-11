@@ -627,7 +627,7 @@
                           (:discard (:anything t)))))))))))
 
 (eval `(use-package linkmarks
-         :straight (eyeliner :type git :host github :repo "dustinlacewell/linkmarks"
+         :straight (linkmarks :type git :host github :repo "dustinlacewell/linkmarks")
          ;; :straight (linkmarks :type git :local-repo ,(my/project-directory "linkmarks/") :files ("linkmarks.el"))
          ))
 
@@ -638,13 +638,13 @@
 
 (eval `(use-package org-ql
          :demand t
-         :straight (eyeliner :type git :host github :repo "dustinlacewell/org-ql")
+         :straight (org-ql :type git :host github :repo "dustinlacewell/org-ql")
          ;; :straight (org-ql :type git :local-repo ,(my/source-directory "org-ql"))
          ))
 
 (eval `(use-package org-olp
          :demand t
-         :straight (eyeliner :type git :host github :repo "dustinlacewell/org-olp")
+         :straight (org-olp :type git :host github :repo "dustinlacewell/org-olp")
          ;; :straight (org-olp :type git :local-repo ,(my/project-directory "org-olp"))
          ))
 
