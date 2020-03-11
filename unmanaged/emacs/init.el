@@ -966,14 +966,15 @@ context-help to false"
   :demand t
   :straight (pretty-hydra :type git :host github
                           :repo "jerrypnz/major-mode-hydra.el"
+                          :branch "c6554ea"
                           :files ("pretty-hydra.el")))
 
 (use-package major-mode-hydra
   :demand t
-  :straight (major-mode-hydra
-             :type git :host github
-             :repo "jerrypnz/major-mode-hydra.el"
-             :files ("major-mode-hydra.el"))
+  :straight (major-mode-hydra :type git :host github
+                              :repo "jerrypnz/major-mode-hydra.el"
+                              :branch "c6554ea"
+                              :files ("major-mode-hydra.el"))
   :config
   (global-set-key (kbd "C-<f19>") 'majorb-mode-hydra))
 

@@ -1453,6 +1453,7 @@ related single-key bindings.
     :demand t
     :straight (pretty-hydra :type git :host github
                             :repo "jerrypnz/major-mode-hydra.el"
+                            :branch "c6554ea"
                             :files ("pretty-hydra.el")))
 #+end_src
 
@@ -1462,10 +1463,10 @@ related single-key bindings.
 #+begin_src emacs-lisp
   (use-package major-mode-hydra
     :demand t
-    :straight (major-mode-hydra
-               :type git :host github
-               :repo "jerrypnz/major-mode-hydra.el"
-               :files ("major-mode-hydra.el"))
+    :straight (major-mode-hydra :type git :host github
+                                :repo "jerrypnz/major-mode-hydra.el"
+                                :branch "c6554ea"
+                                :files ("major-mode-hydra.el"))
     :config
     (global-set-key (kbd "C-<f19>") 'majorb-mode-hydra))
 #+end_src
