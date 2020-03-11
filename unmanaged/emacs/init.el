@@ -637,14 +637,16 @@
   :hook ((emacs-lisp-mode . outshine-mode) (nix-mode . outshine-mode)))
 
 (eval `(use-package org-ql
-   :demand t
-   ;; :straight (org-ql :type git :local-repo ,(my/source-directory "org-ql"))
-   ))
+         :demand t
+         :straight (eyeliner :type git :host github :repo "dustinlacewell/org-ql")
+         ;; :straight (org-ql :type git :local-repo ,(my/source-directory "org-ql"))
+         ))
 
 (eval `(use-package org-olp
-   :demand t
-   ;; :straight (org-olp :type git :local-repo ,(my/project-directory "org-olp"))
-   ))
+         :demand t
+         :straight (eyeliner :type git :host github :repo "dustinlacewell/org-olp")
+         ;; :straight (org-olp :type git :local-repo ,(my/project-directory "org-olp"))
+         ))
 
 (defun get-candidates (filename query)
   (let* ((headlines (eval `(org-ql ,filename ,query)))
