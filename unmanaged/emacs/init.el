@@ -38,7 +38,8 @@
   (defvar my/projects-directory (concat my/home-directory "Projects/"))
   (defvar my/sources-directory (concat my/home-directory "Sources/"))
   (defvar my/org-directory (concat my/home-directory "Syncthing/Org/"))
-  (defvar my/yas-directory (concat my/data-directory "Yas/")))
+  (defvar my/yas-directory (concat my/data-directory "Yas/"))
+  (setq linkmarks-file (concat my/org-directory "bookmarks.org")))
 
 (defun my/org-file-name (file-name)
   "Create file-name relative to my/org-directory"
@@ -77,7 +78,7 @@
       auto-save-interval 20)
 
 (defvar emacs-autosave-directory
-  (concat user-emacs-directory "autosaves/"))
+  (expand-file-name (concat user-emacs-directory "autosaves/")))
 
 (unless (file-exists-p emacs-autosave-directory)
     (make-directory emacs-autosave-directory))
@@ -85,7 +86,8 @@
 (setq auto-save-file-name-transforms
       `((".*" ,emacs-autosave-directory t)))
 
-(setq backup-directory-alist `((".*" . ,emacs-autosave-directory)))
+;; (setq backup-directory-alist `(("." . ,emacs-autosave-directory)))
+(setq backup-directory-alist nil)
 
 (setq kept-new-versions 10
       kept-old-verisons 0)
@@ -95,9 +97,6 @@
 (setq backup-by-copying t)
 
 (setq vc-make-backup-files t)
-
-(use-package backup-each-save
-  :config (add-hook 'after-save-hook 'backup-each-save))
 
 (setq-default cursor-type 'box)
 
@@ -323,13 +322,6 @@
   (org-align-tags t))
 
 (add-hook 'window-configuration-change-hook 'org-realign-tags)
-
-(use-package org-beautify-theme
-  :after (org)
-  :config
-  (setq org-fontify-whole-heading-line t)
-  (setq org-fontify-quote-and-verse-blocks t)
-  (setq org-hide-emphasis-markers t))
 
 (with-eval-after-load 'org
   (setq org-hide-block-startup nil))
@@ -962,6 +954,44 @@ context-help to false"
   (setq yas-snippet-dirs '(my/yas-directory))
   (yas-global-mode 1))
 
+(eval `(use-package org-brain
+         :straight (org-brain :local-repo ,(my/source-directory "org-brain"))
+         :config
+         (setq org-id-track-globally t)
+         (setq org-brain-visualize-default-choices 'all)
+         (setq org-brain-title-max-length 12)
+         (setq org-brain-include-file-entries t
+               org-brain-file-entries-use-title t)
+         :bind (:map org-brain-visualize-mode-map
+                     ;; Navigation
+                     ("j" . backward-button)
+                     ("k" . forward-button)
+                     ("DEL" . org-brain-visualize-back)
+                     ("C-p" . my/org-brain-visualize-parent)
+                     ("C-n" . org-brain-visualize-child)
+
+                     ;; Modification
+                     ("i" . org-brain-pin)
+
+                     ;; Relations
+                     )))
+
+(defun my/org-brain-visualize-parent ()
+  (interactive)
+  (when (org-brain-parents (org-brain-entry-at-pt)) (org-brain-visualize-parent (org-brain-entry-at-pt))))
+
+(defun org-brain-visualize-child (entry &optional all)
+  (interactive (list (org-brain-entry-at-pt)))
+  (when (org-brain-children entry)
+    (let* ((entries (if all (org-brain-children entry)
+                    (org-brain--linked-property-entries
+                     entry org-brain-children-property-name)))
+         (child (cond
+                 ((equal 1 (length entries)) (car-safe entries))
+                 ((not entries) (error (concat entry " has no children")))
+                 (t (org-brain-choose-entry "Goto child: " entries nil t)))))
+    (org-brain-visualize child))))
+
 (use-package hydra)
 
 (use-package pretty-hydra
@@ -978,7 +1008,8 @@ context-help to false"
                               :branch "c6554ea"
                               :files ("major-mode-hydra.el"))
   :config
-  (global-set-key (kbd "C-<f19>") 'majorb-mode-hydra))
+  (global-set-key (kbd "C-<f19>") 'major-mode-hydra)
+  (global-set-key (kbd "C-<f12>") 'major-mode-hydra))
 
 (use-package hera
   :demand t
@@ -1357,13 +1388,50 @@ context-help to false"
     ("v" avy-org-goto-heading-timer "avy")
     ("L" org-toggle-link-display "toggle links"))))
 
-(use-package org-brain
-  :config
-  (setq org-id-track-globally t)
-  (setq org-brain-visualize-default-choices 'all)
-  (setq org-brain-title-max-length 12)
-  (setq org-brain-include-file-entries t
-        org-brain-file-entries-use-title t))
+(nougat-hydra hydra-brain (:color red :major-mode org-brain-visualize-mode)
+  (
+   "View"
+   (("m" org-brain-visualize-mind-map "mind-map"))
+   "Navigate"
+   (("DEL" org-brain-visualize-back "back")
+    ("j" backward-button "backward")
+    ("k" forward-button "forward"))
+   ))
+
+(defun my/toggle-window-split (&optional arg)
+    "Switch between 2 windows split horizontally or vertically.
+    With ARG, swap them instead."
+    (interactive "P")
+    (unless (= (count-windows) 2)
+      (user-error "Not two windows"))
+    ;; Swap two windows
+    (if arg
+        (let ((this-win-buffer (window-buffer))
+              (next-win-buffer (window-buffer (next-window))))
+          (set-window-buffer (selected-window) next-win-buffer)
+          (set-window-buffer (next-window) this-win-buffer))
+      ;; Swap between horizontal and vertical splits
+      (let* ((this-win-buffer (window-buffer))
+             (next-win-buffer (window-buffer (next-window)))
+             (this-win-edges (window-edges (selected-window)))
+             (next-win-edges (window-edges (next-window)))
+             (this-win-2nd (not (and (<= (car this-win-edges)
+                                         (car next-win-edges))
+                                     (<= (cadr this-win-edges)
+                                         (cadr next-win-edges)))))
+             (splitter
+              (if (= (car this-win-edges)
+                     (car (window-edges (next-window))))
+                  'split-window-horizontally
+                'split-window-vertically)))
+        (delete-other-windows)
+        (let ((first-win (selected-window)))
+          (funcall splitter)
+          (if this-win-2nd (other-window 1))
+          (set-window-buffer (selected-window) this-win-buffer)
+          (set-window-buffer (next-window) next-win-buffer)
+          (select-window first-win)
+          (if this-win-2nd (other-window 1))))))
 
 (use-package treemacs
   :demand t
@@ -1474,38 +1542,40 @@ context-help to false"
     ("p" (hera-push 'hydra-projectile/body) "projectile")
     ("c" (org-capture) "capture")
     ("b" (hera-push 'hydra-bookmarks/body) "bookmarks"))
-   "Emacs" (
-            ("h" (hera-push 'hydra-help/body) "help")
-            ("m" (hera-push 'hydra-mark/body) "mark")
-            ("w" (hera-push 'hydra-window/body) "windows")
-            ("z" (hera-push 'hydra-zoom/body) "zoom")
-            ("r" (hera-push 'hydra-registers/body) "registers"))
+   "Emacs"
+   (("h" (hera-push 'hydra-help/body) "help")
+    ("m" (hera-push 'hydra-mark/body) "mark")
+    ("w" (hera-push 'hydra-window/body) "windows")
+    ("z" (hera-push 'hydra-zoom/body) "zoom")
+    ("r" (hera-push 'hydra-registers/body) "registers"))
    "Misc"
    (("n" (hera-push 'hydra-notes/body) "notes")
     ("g" (hera-push 'hydra-gist/body) "gist")
+    ("B" org-brain-visualize "brain")
     ("l" (progn (setq this-command 'sutysisku-search-helm)
                 (call-interactively 'sutysisku-search-helm)) "lojban"))))
 
-(defhydra hydra-default (:color blue :hint nil)
-  "
+;; (defhydra hydra-default (:color blue :hint nil)
+;;   "
 
-            Entrypoint Hydra
+;;             Entrypoint Hydra
 
-"
-  ("a" (org-agenda nil "a") "agenda" :column "Open")
-  ("p" (hera-push 'hydra-projectile/body) "projectile")
-  ("c" (org-capture) "capture")
-  ("b" (hera-push 'hydra-bookmarks/body) "bookmarks")
-  ("h" (hera-push 'hydra-help/body) "help" :column "Emacs")
-  ("m" (hera-push 'hydra-mark/body) "mark")
-  ("w" (hera-push 'hydra-window/body) "windows")
-  ("z" (hera-push 'hydra-zoom/body) "zoom")
-  ("R" (hera-push 'hydra-registers/body) "registers")
-  ("n" (hera-push 'hydra-notes/body) "notes" :column "Misc")
-  ("s" (call-interactively 'helm-imenu) "semantic")
-  ("g" (hera-push 'hydra-gist/body) "gist")
-  ("l" (progn (setq this-command 'sutysisku-search-helm)
-              (call-interactively 'sutysisku-search-helm)) "lojban"))
+;; "
+;;   ("a" (org-agenda nil "a") "agenda" :column "Open")
+;;   ("p" (hera-push 'hydra-projectile/body) "projectile")
+;;   ("c" (org-capture) "capture")
+;;   ("b" (hera-push 'hydra-bookmarks/body) "bookmarks")
+;;   ("h" (hera-push 'hydra-help/body) "help" :column "Emacs")
+;;   ("m" (hera-push 'hydra-mark/body) "mark")
+;;   ("w" (hera-push 'hydra-window/body) "windows")
+;;   ("z" (hera-push 'hydra-zoom/body) "zoom")
+;;   ("R" (hera-push 'hydra-registers/body) "registers")
+;;   ("n" (hera-push 'hydra-notes/body) "notes" :column "Misc")
+;;   ("s" (call-interactively 'helm-imenu) "semantic")
+;;   ("g" (hera-push 'hydra-gist/body) "gist")
+;;   ("b" (call-interactively 'org-brain-visualize) "brain")
+;;   ("l" (progn (setq this-command 'sutysisku-search-helm)
+;;               (call-interactively 'sutysisku-search-helm)) "lojban"))
 
 (when (string-equal system-type "gnu/linux")
 
@@ -1538,6 +1608,16 @@ context-help to false"
  )
 
 (setq ispell-program-name (concat my/home-directory ".nix-profile/bin/aspell"))
+
+(use-package backup-each-save
+  :config (add-hook 'after-save-hook 'backup-each-save))
+
+(use-package org-beautify-theme
+  :after (org)
+  :config
+  (setq org-fontify-whole-heading-line t)
+  (setq org-fontify-quote-and-verse-blocks t)
+  (setq org-hide-emphasis-markers t))
 
 (use-package jedi
   :init
@@ -1609,5 +1689,7 @@ context-help to false"
 )
 
 (when (string-equal system-type "windows-nt")
+
+(use-package dracula-theme)
 
 )
