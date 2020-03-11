@@ -877,3 +877,737 @@ context-help to false"
 (defun nix-mode-make-regexp (parts)
   (declare (indent defun))
   (string-join parts "\\|"))
+
+(defun nix-mode-search-backward ()
+  (re-search-backward nix-mode-combined-regexp nil t))
+
+(setq nix-mode-caps '(" =[ \n]" "\(" "\{" "\\[" "\\bwith " "\\blet\\b" "\\binherit\\b"))
+(setq nix-mode-ends '(";" "\)" "\\]" "\}" "\\bin\\b"))
+(setq nix-mode-quotes '("''" "\""))
+(setq nix-mode-caps-regexp (nix-mode-make-regexp nix-mode-caps))
+(setq nix-mode-ends-regexp (nix-mode-make-regexp nix-mode-ends))
+(setq nix-mode-quotes-regexp (nix-mode-make-regexp nix-mode-quotes))
+(setq nix-mode-combined-regexp (nix-mode-make-regexp (append nix-mode-caps nix-mode-ends nix-mode-quotes)))
+
+(defun fixed-nix-indent-expression-start ()
+  (let* ((ends 0)
+         (once nil)
+         (done nil)
+         (indent (current-indentation)))
+    (save-excursion
+      ;; we want to indent this line, so we don't care what it contains
+      ;; skip to the beginning so reverse searching doesn't find any matches within
+      (beginning-of-line)
+      ;; search backward until an unbalanced cap is found or no cap or end is found
+      (while (and (not done) (nix-mode-search-backward))
+        (cond
+         ((looking-at nix-mode-quotes-regexp)
+          ;; skip over strings entirely
+          (re-search-backward nix-mode-quotes-regexp nil t))
+         ((looking-at nix-mode-ends-regexp)
+          ;; count the matched end
+          ;; this means we expect to find at least one more cap
+          (setq ends (+ ends 1)))
+         ((looking-at nix-mode-caps-regexp)
+          ;; we found at least one cap
+          ;; this means our function will return true
+          ;; this signals to the caller we handled the indentation
+          (setq once t)
+          (if (> ends 0)
+              ;; this cap corresponds to a previously matched end
+              ;; reduce the number of unbalanced ends
+              (setq ends (- ends 1))
+            ;; no unbalanced ends correspond to this cap
+            ;; this means we have found the expression that contains our line
+            ;; we want to indent relative to this line
+            (setq indent (current-indentation))
+            ;; signal that the search loop should exit
+            (setq done t))))))
+    ;; done is t when we found an unbalanced expression cap
+    (when done
+      ;; indent relative to the indentation of the expression containing our line
+      (indent-line-to (+ tab-width indent)))
+    ;; return t to the caller if we found at least one cap
+    ;; this signals that we handled the indentation
+    once))
+
+(defun nix-mode-format ()
+  "Format the entire nix-mode buffer"
+  (interactive)
+  (when (eq major-mode 'nix-mode)
+    (save-excursion
+      (beginning-of-buffer)
+      (while (not (equal (point) (point-max)))
+        (if (equal (string-match-p "^[\s-]*$" (thing-at-point 'line)) 0)
+            (delete-horizontal-space)
+          (nix-indent-line))
+        (next-line)))))
+
+(eval `(use-package nix-mode
+   ;; :straight (nix-mode :type git :local-repo ,(my/source-directory "nix-mode"))
+                                        ;:straight (nix-mode :type git :host github :repo "NixOS/nix-mode")
+   :config
+   (add-to-list 'auto-mode-alist '("\\.nix?\\'" . nix-mode))
+   (add-hook 'before-save-hook #'nix-mode-format)
+   (define-key nix-mode-map (kbd "TAB") 'nix-indent-line)
+   (setq nix-indent-function 'nix-indent-line)
+   (defalias
+     #'nix-indent-expression-start
+     #'fixed-nix-indent-expression-start)))
+
+(use-package nix-sandbox)
+
+(use-package yasnippet
+  :config
+  (setq yas-snippet-dirs '(my/yas-directory))
+  (yas-global-mode 1))
+
+(use-package hydra)
+
+(use-package pretty-hydra
+  :demand t
+  :straight (pretty-hydra :type git :host github
+                          :repo "jerrypnz/major-mode-hydra.el"
+                          :branch "c6554ea"
+                          :files ("pretty-hydra.el")))
+
+(use-package major-mode-hydra
+  :demand t
+  :straight (major-mode-hydra :type git :host github
+                              :repo "jerrypnz/major-mode-hydra.el"
+                              :branch "c6554ea"
+                              :files ("major-mode-hydra.el"))
+  :config
+  (global-set-key (kbd "C-<f19>") 'majorb-mode-hydra))
+
+(use-package hera
+  :demand t
+  :straight (hera :type git :host github :repo "dustinlacewell/hera"))
+
+(defun nougat--inject-hint (symbol hint)
+  (-let* ((name (symbol-name symbol))
+          (hint-symbol (intern (format "%s/hint" name)))
+          (format-form (eval hint-symbol))
+          (string-cdr (nthcdr 1 format-form))
+          (format-string (string-trim (car string-cdr)))
+          (amended-string (format "%s\n\n%s" format-string hint)))
+    (setcar string-cdr amended-string)))
+
+(defun nougat--make-head-hint (head default-color)
+  (-let (((key _ hint . rest) head))
+    (when key
+      (-let* (((&plist :color color) rest)
+              (color (or color default-color))
+              (face (intern (format "hydra-face-%s" color)))
+              (propertized-key (propertize key 'face face)))
+        (format " [%s]: %s" propertized-key hint)))))
+
+(defun nougat--make-hint (heads default-color)
+  (string-join
+   (cl-loop for head in heads
+            for hint = (nougat--make-head-hint head default-color)
+            do (pp hint)
+            collect hint) "\n"))
+
+(defun nougat--clear-hint (head)
+  (-let* (((key form _ . rest) head))
+    `(,key ,form nil ,@rest)))
+
+(defun nougat--add-exit-head (heads)
+  (let ((exit-head '("SPC" (hera-pop) "to exit" :color blue)))
+    (append heads `(,exit-head))))
+
+(defun nougat--add-heads (columns extra-heads)
+  (let* ((cell (nthcdr 1 columns))
+         (heads (car cell))
+         (extra-heads (mapcar 'nougat--clear-hint extra-heads)))
+    (setcar cell (append heads extra-heads))))
+
+(defmacro nougat-hydra (name body columns &optional extra-heads)
+  (declare (indent defun))
+  (-let* (((&plist :color default-color :major-mode mode) body)
+          (extra-heads (nougat--add-exit-head extra-heads))
+          (extra-hint (nougat--make-hint extra-heads default-color))
+          (body (plist-put body :hint nil))
+          (body-name (format "%s/body" (symbol-name name)))
+          (body-symbol (intern body-name))
+          (mode-support
+           `(when ',mode
+              (setq major-mode-hydra--body-cache
+                    (a-assoc major-mode-hydra--body-cache ',mode ',body-symbol)))))
+    (nougat--add-heads columns extra-heads)
+    (when mode
+      (remf body :major-mode))
+    `(progn
+       (pretty-hydra-define ,name ,body ,columns)
+       (nougat--inject-hint ',name ,extra-hint)
+       ,mode-support)))
+
+;; (nougat-hydra hydra-test (:color red :major-mode fundamental-mode)
+;;   ("First"
+;;    (("a" (message "first - a") "msg a" :color blue)
+;;     ("b" (message "first - b") "msg b"))
+;;    "Second"
+;;    (("c" (message "second - c") "msg c" :color blue)
+;;     ("d" (message "second - d") "msg d"))))
+
+(defun my/hydra-dwim ()
+  (interactive)
+  (-let (((&alist major-mode mode) major-mode-hydra--body-cache))
+    (if mode (major-mode-hydra)
+      (hera-start 'hydra-default/body))))
+
+(setq kbd-hera-pop "<f12>")
+(global-set-key (kbd "<f13>") 'my/hydra-dwim)
+(global-set-key (kbd "<f12>") (lambda () (interactive) (hera-start 'hydra-default/body)))
+
+(require 'seq)
+
+(defun helm-org-bm--element (regexp)
+  (search-forward-regexp regexp)
+  (next-line)
+  (org-element-context))
+
+(defun helm-org-bm--format (element)
+  (format "[[%s]]" (plist-get (nth 1 element) :raw-link)))
+
+(defun helm-org-bm--filter-candidates (canididates)
+  (cl-loop for c in candidates
+           for label = (nth 0 c)
+           for regexp = (nth 2 c)
+           for element = (helm-org-bm--element regexp)
+           if (equal 'link (car element))
+           collect (list label (helm-org-bm--format element))))
+
+(defun helm-org-bm--get-bookmarks ()
+  (let* ((org-refile-targets '((nil :maxlevel . 99)))
+         (candidates (org-refile-get-targets)))
+    (helm-org-bm--filter-candidates candidates)))
+
+(defun helm-org-bm--pick-bookmark (targets)
+  (let ((choice (completing-read ">" (mapcar 'car targets))))
+    (seq-find (lambda (i) (string-equal choice (car i))) targets)))
+
+(defun helm-org-bm-bookmark ()
+  (interactive)
+  (save-excursion
+    (with-temp-buffer
+      (insert-file-contents (my/org-file-name "bookmarks.org"))
+      (org-mode)
+      (outline-show-all)
+      (beginning-of-buffer)
+      (let* ((targets (helm-org-bm--get-bookmarks))
+             (choice (helm-org-bm--pick-bookmark targets))
+             (org-link-frame-setup '((file . find-file)))
+             (org-confirm-elisp-link-function nil))
+        (org-open-link-from-string (cadr choice) (current-buffer))))))
+
+(defun helm-org-bm-capture ()
+  (interactive)
+  (let ((org-capture-entry helm-org-bm-entry))
+    (setq org-refile-use-outline-path t)
+    (setq org-outline-path-complete-in-steps nil)
+    (setq org-refile-targets '((nil :maxlevel . 99)))
+    (ignore-errors (org-capture))))
+
+(setq helm-org-bm-entry
+      '("t" "Bookmark" entry (file (my/org-file-name "bookmarks.org"))
+        "* %^{Title}\n[[%?]]\n  added: %U" '(:kill-buffer)))
+
+(setq helm-org-bm-actions
+      '(("Open bookmark" . helm-org-bm--goto)
+        ("Go to heading" . helm-org-goto-marker)
+        ("Open in indirect buffer `C-c i'" .
+         helm-org--open-heading-in-indirect-buffer)
+        ("Refile heading(s) `C-c w`" .
+         helm-org--refile-heading-to)
+        ("Insert link to this heading `C-c l`" .
+         helm-org-insert-link-to-heading-at-marker)))
+
+(nougat-hydra hydra-bookmarks (:color blue)
+  ("Bookmarks" (("n" (helm-org-bm-capture) "new")
+                ("b" (helm-org-bm-bookmark) "bookmarks"))))
+
+(global-set-key (kbd "<f19>") 'major-mode-hydra)
+
+(nougat-hydra hydra-help (:color blue)
+  ("Describe"
+   (("c" describe-function "function")
+    ("p" describe-package "package")
+    ("m" describe-mode "mode")
+    ("v" describe-variable "variable"))
+   "Keys"
+   (("k" describe-key "key")
+    ("K" describe-key-briefly "brief key")
+    ("w" where-is "where-is")
+    ("b" helm-descbinds "bindings"))
+   "Search"
+   (("a" helm-apropos "apropos")
+    ("d" apropos-documentation "documentation")
+    ("s" info-lookup-symbol "symbol info"))
+   "Docs"
+   (("i" info "info")
+    ("n" helm-man-woman "man")
+    ("h" helm-dash "dash"))
+   "View"
+   (("e" view-echo-area-messages "echo area")
+    ("l" view-lossage "lossage")
+    ("c" describe-coding-system "encoding")
+    ("I" describe-input-method "input method")
+    ("C" describe-char "char at point"))))
+
+(defun unpop-to-mark-command ()
+  "Unpop off mark ring. Does nothing if mark ring is empty."
+  (when mark-ring
+    (setq mark-ring (cons (copy-marker (mark-marker)) mark-ring))
+    (set-marker (mark-marker) (car (last mark-ring)) (current-buffer))
+    (when (null (mark t)) (ding))
+    (setq mark-ring (nbutlast mark-ring))
+    (goto-char (marker-position (car (last mark-ring))))))
+
+(defun push-mark ()
+  (interactive)
+  (set-mark-command nil)
+  (set-mark-command nil))
+
+(nougat-hydra hydra-mark (:color pink)
+  ("Mark"
+   (("m" push-mark "mark here")
+    ("p" (lambda () (interactive) (set-mark-command '(4))) "previous")
+    ("n" (lambda () (interactive) (unpop-to-mark-command)) "next")
+    ("c" (lambda () (interactive) (setq mark-ring nil)) "clear"))))
+
+(defun projectile-readme ()
+    (interactive)
+    (let ((file-name (-find (lambda (f) (s-matches? "^readme" f))
+                            (projectile-current-project-files))))
+      (find-file (concat (projectile-project-root) "/" file-name))))
+
+(use-package helm-projectile :demand t
+  :config
+  (defun projectile-dwim ()
+    (interactive)
+    (if (string= "-" (projectile-project-name))
+        (helm-projectile-switch-project)
+      (hydra-projectile/body)))
+
+  (nougat-hydra hydra-projectile (:color blue)
+    ("Open"
+     (("f" (helm-projectile-find-file-dwim) "file")
+      ("p" (helm-projectile-switch-project) "project")
+      ("b" (helm-projectile-switch-to-buffer) "buffer")
+      ("w" (hydra-treemacs/body) "workspace"))
+     "Do"
+     (("s" (call-interactively 'helm-projectile-ag) "search")
+      ("c" (org-projectile-helm-template-or-project) "capture"))
+     "Cache"
+     (("C" projectile-invalidate-cache "clear")
+      ("x" (projectile-remove-known-project) "remove project")
+      ("X" (projectile-cleanup-known-projects) "cleanup")))))
+
+(nougat-hydra hydra-registers (:color pink)
+  ("Point"
+   (("r" point-to-register "save point")
+    ("j" jump-to-register "jump")
+    ("v" view-register "view all"))
+   "Text"
+   (("c" copy-to-register "copy region")
+    ("C" copy-rectangle-to-register "copy rect")
+    ("i" insert-register "insert")
+    ("p" prepend-to-register "prepend")
+    ("a" append-to-register "append"))
+   "Macros"
+   (("m" kmacro-to-register "store")
+    ("e" jump-to-register "execute"))))
+
+(use-package ace-window)
+(winner-mode 1)
+
+(nougat-hydra hydra-window (:color red)
+  ("Jump"
+   (("h" windmove-left "left")
+    ("l" windmove-right "right")
+    ("k" windmove-up "up")
+    ("j" windmove-down "down")
+    ("a" ace-select-window "ace"))
+   "Split"
+   (("q" split-window-right "left")
+    ("r" (progn (split-window-right) (call-interactively 'other-window)) "right")
+    ("e" split-window-below "up")
+    ("w" (progn (split-window-below) (call-interactively 'other-window)) "down"))
+   "Do"
+   (("d" delete-window "delete")
+    ("o" delete-other-windows "delete others")
+    ("u" winner-undo "undo")
+    ("R" winner-redo "redo")
+    ("t" nougat-hydra-toggle-window "toggle"))))
+
+(defun my/toggle-window-split (&optional arg)
+    "Switch between 2 windows split horizontally or vertically.
+    With ARG, swap them instead."
+    (interactive "P")
+    (unless (= (count-windows) 2)
+      (user-error "Not two windows"))
+    ;; Swap two windows
+    (if arg
+        (let ((this-win-buffer (window-buffer))
+              (next-win-buffer (window-buffer (next-window))))
+          (set-window-buffer (selected-window) next-win-buffer)
+          (set-window-buffer (next-window) this-win-buffer))
+      ;; Swap between horizontal and vertical splits
+      (let* ((this-win-buffer (window-buffer))
+             (next-win-buffer (window-buffer (next-window)))
+             (this-win-edges (window-edges (selected-window)))
+             (next-win-edges (window-edges (next-window)))
+             (this-win-2nd (not (and (<= (car this-win-edges)
+                                         (car next-win-edges))
+                                     (<= (cadr this-win-edges)
+                                         (cadr next-win-edges)))))
+             (splitter
+              (if (= (car this-win-edges)
+                     (car (window-edges (next-window))))
+                  'split-window-horizontally
+                'split-window-vertically)))
+        (delete-other-windows)
+        (let ((first-win (selected-window)))
+          (funcall splitter)
+          (if this-win-2nd (other-window 1))
+          (set-window-buffer (selected-window) this-win-buffer)
+          (set-window-buffer (next-window) next-win-buffer)
+          (select-window first-win)
+          (if this-win-2nd (other-window 1))))))
+
+(nougat-hydra hydra-yank-pop (:color red)
+  ("Yank/Pop"
+   (("y" (yank-pop 1) "previous")
+    ("Y" (yank-pop -1) "next")
+    ("l" helm-show-kill-ring "list" :color blue))))
+
+(global-set-key
+ (kbd "C-y")
+ (lambda () (interactive) (yank) (hydra-yank-pop/body)))
+
+(nougat-hydra hydra-zoom (:color red)
+  ("Zoom"
+   (("i" text-scale-increase "in")
+    ("o" text-scale-decrease "out"))))
+
+(nougat-hydra hydra-elisp (:color blue :major-mode emacs-lisp-mode)
+  ("Execute"
+   (("d" eval-defun "defun")
+    ("b" eval-current-buffer "buffer")
+    ("r" eval-region "region"))
+   "Debug"
+   (("D" edebug-defun "defun")
+    ("a" edebug-all-defs "all definitions" :color red)
+    ("A" edebug-all-forms "all forms" :color red))))
+
+(defun hydra-org-goto-first-sibling () (interactive)
+       (org-backward-heading-same-level 99999999))
+
+(defun hydra-org-goto-last-sibling () (interactive)
+       (org-forward-heading-same-level 99999999))
+
+(defun hydra-org-parent-level ()
+  (interactive)
+  (let ((o-point (point)))
+    (if (save-excursion
+          (beginning-of-line)
+          (looking-at org-heading-regexp))
+        (progn
+          (call-interactively 'outline-up-heading)
+          (org-cycle-internal-local))
+      (progn
+        (call-interactively 'org-previous-visible-heading)
+        (org-cycle-internal-local)))
+    (when (and (/= o-point (point))
+               org-tidy-p)
+      (call-interactively 'hydra-org-tidy))))
+
+(defun hydra-org-child-level ()
+  (interactive)
+  (org-show-entry)
+  (org-show-children)
+  (when (not (org-goto-first-child))
+    (when (save-excursion
+            (beginning-of-line)
+            (looking-at org-heading-regexp))
+      (next-line))))
+
+(require 'helm-org)
+(nougat-hydra hydra-org (:color red :major-mode org-mode)
+  ("Shift"
+   (("K" org-move-subtree-up "up")
+    ("J" org-move-subtree-down "down")
+    ("h" org-promote-subtree "promote")
+    ("l" org-demote-subtree "demote"))
+   "Travel"
+   (("p" org-backward-heading-same-level "backward")
+    ("n" org-forward-heading-same-level "forward")
+    ("j" hydra-org-child-level "to child")
+    ("k" hydra-org-parent-level "to parent")
+    ("a" hydra-org-goto-first-sibling "first sibling")
+    ("e" hydra-org-goto-last-sibling "last sibling"))
+   "Perform"
+   (("b" helm-org-in-buffer-headings "browse")
+    ("r" (lambda () (interactive)
+           (helm-org-rifle-current-buffer)
+           (call-interactively 'org-cycle)
+           (call-interactively 'org-cycle)) "rifle")
+    ("v" avy-org-goto-heading-timer "avy")
+    ("L" org-toggle-link-display "toggle links"))))
+
+(use-package org-brain
+  :config
+  (setq org-id-track-globally t)
+  (setq org-brain-visualize-default-choices 'all)
+  (setq org-brain-title-max-length 12)
+  (setq org-brain-include-file-entries t
+        org-brain-file-entries-use-title t))
+
+(use-package treemacs
+  :demand t
+  :config (progn
+          (setq treemacs-width 25)
+          (global-set-key (kbd "M-<f12>") 'treemacs)
+          (define-key treemacs-mode-map [mouse-1] #'treemacs-single-click-expand-action)
+          (setq treemacs-project-follow-cleanup t)
+          (setq treemacs-is-never-other-window t)))
+
+(setq treemacs-icon-open-png   (propertize "⊖ " 'face 'treemacs-directory-face)
+      treemacs-icon-closed-png (propertize "⊕ " 'face 'treemacs-directory-face))
+
+(use-package treemacs-projectile)
+(use-package treemacs-magit)
+
+(nougat-hydra hydra-treemacs (:color red)
+  ("Workspace"
+   (("o" treemacs-switch-workspace "open")
+    ("n" treemacs-create-workspace "new")
+    ("k" treemacs-delete-workspace "kill")
+    ("r" treemacs-rename-workspace "rename"))))
+
+(defun advice-unadvice (sym)
+  "Remove all advices from symbol SYM."
+  (interactive "aFunction symbol: ")
+  (advice-mapc (lambda (advice _props) (advice-remove sym advice)) sym))
+
+(defun elfeed-font-size-hook ()
+  (buffer-face-set '(:height 1.35)))
+
+(defun elfeed-visual-fill-hook ()
+  (visual-fill-column-mode--enable))
+
+(defun elfeed-show-refresh-advice (entry)
+  (elfeed-font-size-hook)
+  (visual-fill-column-mode 1)
+  (setq word-wrap 1)
+  (elfeed-show-refresh))
+
+(defun elfeed-show ()
+  (interactive)
+  (elfeed)
+  (delete-other-windows))
+
+(use-package elfeed
+  :bind (("C-x w" . elfeed-show))
+  :config
+  (add-hook 'elfeed-search-update-hook 'elfeed-font-size-hook)
+  (advice-unadvice 'elfeed-show-entry)
+  (advice-add 'elfeed-show-entry :after 'elfeed-show-refresh-advice))
+
+(use-package elfeed-org
+  :after (elfeed)
+  :config
+  (elfeed-org)
+  (setq rmh-elfeed-org-files (list (my/org-file-name "notes.org"))))
+
+(use-package demo-it
+  :straight (demo-it :type git :host github :repo "howardabrams/demo-it"))
+
+(use-package gist
+  :straight (gist :type git :host github :repo "defunkt/gist.el"))
+
+
+(nougat-hydra hydra-gist (:color blue)
+  ("Gist" (("p" (gist-region-or-buffer) "public")
+           ("P" (gist-region-or-buffer-private) "private")
+           ("b" (browse-url "https://gist.github.com/dustinlacewell") "browse"))))
+
+(use-package poker
+  :straight (poker :type git :host github :repo "mlang/poker.el"))
+
+(setq ep-notes-file (my/org-file-name "notes.org"))
+
+(defun ep-notes-find-file () (find-file ep-notes-file))
+
+(defun ep-notes-visit (&rest olp) (org-olp-visit ep-notes-file olp))
+;; (ep-notes-visit "Workiva" "Runbooks")
+
+(defun ep-notes-select-then-visit (&rest olp) (org-olp-select-then-visit ep-notes-file olp))
+;; (ep-notes-select-then-visit "Workiva" "Tasks")
+
+(nougat-hydra hydra-bookmarks (:color blue)
+  ("Bookmarks" (("n" (linkmarks-capture) "new")
+                ("b" (linkmarks-select) "browse")
+                ("e" (find-file my/bookmarks-file-name)))))
+
+(require 'org-olp)
+
+(nougat-hydra hydra-tasks (:color blue)
+  ("Todos"
+   (("t" (visit-candidate my/notes-file-name '(todo "TODO")) "todo")
+    ("d" (visit-candidate my/notes-file-name '(todo "DOING")) "doing")
+    ("D" (visit-candidate my/notes-file-name '(todo "DONE")) "done"))))
+
+(nougat-hydra hydra-notes (:color blue)
+  ("Notes"
+   (("f" (org-olp-find my/notes-file-name) "find")
+    ("t" (hera-push 'hydra-tasks/body) "tasks")
+    ("p" (org-olp-visit
+          my/notes-file-name
+          '("Software" "Emacs" "Packages")) "emacs packages"))))
+
+(nougat-hydra hydra-default (:color blue)
+  ("Open"
+   (("a" (org-agenda nil "a") "agenda")
+    ("p" (hera-push 'hydra-projectile/body) "projectile")
+    ("c" (org-capture) "capture")
+    ("b" (hera-push 'hydra-bookmarks/body) "bookmarks"))
+   "Emacs" (
+            ("h" (hera-push 'hydra-help/body) "help")
+            ("m" (hera-push 'hydra-mark/body) "mark")
+            ("w" (hera-push 'hydra-window/body) "windows")
+            ("z" (hera-push 'hydra-zoom/body) "zoom")
+            ("r" (hera-push 'hydra-registers/body) "registers"))
+   "Misc"
+   (("n" (hera-push 'hydra-notes/body) "notes")
+    ("g" (hera-push 'hydra-gist/body) "gist")
+    ("l" (progn (setq this-command 'sutysisku-search-helm)
+                (call-interactively 'sutysisku-search-helm)) "lojban"))))
+
+(defhydra hydra-default (:color blue :hint nil)
+  "
+
+            Entrypoint Hydra
+
+"
+  ("a" (org-agenda nil "a") "agenda" :column "Open")
+  ("p" (hera-push 'hydra-projectile/body) "projectile")
+  ("c" (org-capture) "capture")
+  ("b" (hera-push 'hydra-bookmarks/body) "bookmarks")
+  ("h" (hera-push 'hydra-help/body) "help" :column "Emacs")
+  ("m" (hera-push 'hydra-mark/body) "mark")
+  ("w" (hera-push 'hydra-window/body) "windows")
+  ("z" (hera-push 'hydra-zoom/body) "zoom")
+  ("R" (hera-push 'hydra-registers/body) "registers")
+  ("n" (hera-push 'hydra-notes/body) "notes" :column "Misc")
+  ("s" (call-interactively 'helm-imenu) "semantic")
+  ("g" (hera-push 'hydra-gist/body) "gist")
+  ("l" (progn (setq this-command 'sutysisku-search-helm)
+              (call-interactively 'sutysisku-search-helm)) "lojban"))
+
+(when (string-equal system-type "gnu/linux")
+
+(setq exec-path-from-shell-check-startup-files nil)
+
+(load-file "/home/ldlework/.emacs.d/theme.el")
+(enable-theme 'xresources)
+
+(defun theme-callback (event)
+  (load-file "~/.config/wpg/formats/theme.el")
+  (set-eyeliner-colors)
+  (eyeliner/install)
+  (enable-theme 'xresources))
+
+(require 'filenotify)
+(setq theme-watch-handle
+      (file-notify-add-watch
+       "/home/ldlework/.config/wpg/formats/theme.el" '(change) 'theme-callback))
+
+(setq powerline-height 32)
+(set-face-attribute 'default nil :family "Source Code Pro" :weight 'light)
+
+(use-package unicode-fonts
+  :config
+  (unicode-fonts-setup)
+  (set-face-attribute 'default nil :font "Source Code Pro")
+  ;(set-fontset-font "fontset-default" 'unicode "Consolas" nil)
+  (set-fontset-font "fontset-default" 'unicode "DejaVu Sans Mono" nil)
+  (set-fontset-font "fontset-default" 'unicode "Symbola" nil)
+ )
+
+(setq ispell-program-name (concat my/home-directory ".nix-profile/bin/aspell"))
+
+(use-package jedi
+  :init
+  (progn
+    (add-hook 'python-mode-hook 'jedi:setup)
+    (setq jedi:complete-on-dot t)))
+
+(defun setup-tide-mode ()
+  (interactive)
+  (tide-setup)
+  (flycheck-mode +1)
+  (setq flycheck-check-syntax-automatically '(save mode-enabled))
+  (eldoc-mode +1)
+  (tide-hl-identifier-mode +1)
+  (company-mode +1))
+
+(use-package tide
+  :config
+  (add-hook 'before-save-hook 'tide-format-before-save)
+  (add-hook 'typescript-mode-hook #'setup-tide-mode)
+  (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))
+  (add-hook 'web-mode-hook
+            (lambda ()
+              (when (string-equal "tsx" (file-name-extension buffer-file-name))
+                (setup-tide-mode))))
+  (flycheck-add-mode 'typescript-tslint 'web-mode))
+
+(with-eval-after-load 'fsharp-mode
+  (add-to-list 'exec-path "/nix/var/nix/profiles/default/bin")
+  (add-to-list 'exec-path (expand-file-name "~/.nix-profile/bin"))
+  (add-to-list 'auto-mode-alist '("\\.fs[iylx]?$" . fsharp-mode)))
+
+(set-face-attribute
+ 'helm-selection nil
+ :inherit t
+ :background (theme-color 'blue)
+ :foreground (theme-color 'background)
+ :height 1.0
+ :weight 'ultra-bold
+ :inverse-video nil)
+
+(set-face-attribute
+ 'helm-source-header nil
+ :inherit nil
+ :underline nil
+ :background (theme-color 'background)
+ :foreground (theme-color 'light-red)
+ :height 1.9)
+
+(set-face-attribute
+ 'helm-header nil
+ :inherit nil
+ :height 0.8
+ :background (theme-color 'background)
+ :foreground (theme-color 'cyan))
+
+(set-face-attribute
+ 'helm-separator nil
+ :height 0.8
+ :foreground (theme-color 'light-red))
+
+(set-face-attribute
+ 'helm-match nil
+ :weight 'bold
+ :foreground (theme-color 'green))
+
+(enable-theme 'xresources)
+
+)
+
+(when (string-equal system-type "windows-nt")
+
+)
