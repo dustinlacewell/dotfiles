@@ -795,6 +795,11 @@ headings.
     (setq org-confirm-elisp-link-function nil))
 #+END_SRC
 
+** org-helm
+#+begin_src emacs-lisp
+  (use-package helm-org)
+#+end_src
+
 ** org-projectile
 #+begin_src emacs-lisp
   (use-package org-projectile
