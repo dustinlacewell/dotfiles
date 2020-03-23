@@ -14,19 +14,7 @@
 #+PROPERTY: header-args    :tangle yes
 
 * setup
-
-The following sections take care of bootstrapping =straight.el= for
-package-management and some other concerns before things can get started.
-
 ** lexical binding
-
-This line controls how the elisp scoping works in the rest of the file. Lexical
-binding is explained in the documentation.
-
-#+begin_src emacs-lisp
-;;; -*- lexical-binding: t; -*-
-#+end_src
-
 ** straight.el
 [[https://github.com/raxod502/straight.el][straight.el]] is an alternative to [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Packages.html][package.el]] with many advantages including the
 ability to integrate with [[https://github.com/jwiegley/use-package][use-package]] and installing packages from git or
@@ -95,10 +83,6 @@ data structures.
 #+end_src
 
 ** utility functions
-
-The next series of functions help compute various paths and filenames that are
-used throughout the rest of the configuration.
-
 *** my/org-file-name
 #+begin_src emacs-lisp
   (defun my/org-file-name (file-name)
@@ -163,9 +147,11 @@ used throughout the rest of the configuration.
 
 * core
 The following sections customize core Emacs settings.
+
 ** autosaves
 Auto-save will periodically save files to backup while you editing. This is
 great if something goes catastrophically wrong to Emacs!
+
 *** autosave every buffer that visits a file
 #+BEGIN_SRC emacs-lisp
   (setq auto-save-default t)
@@ -193,9 +179,11 @@ great if something goes catastrophically wrong to Emacs!
 Backups are created everytime a buffer is saved. This is really useful
 for recovering work that takes place between version-control commits
 or on unversioned files.
+
 *** store backups with the autosaves
 #+BEGIN_SRC emacs-lisp
   ;; (setq backup-directory-alist `(("." . ,emacs-autosave-directory)))
+  (setq make-backup-files nil)
   (setq backup-directory-alist nil)
 #+END_SRC
 
@@ -235,6 +223,7 @@ or on unversioned files.
 Turn off various UI features to achieve a minimal, distraction free
 experience. Additionally, all configuration should live inside
 version-controlled files so the Emacs customizations file is also disabled.
+
 *** menubar
 #+BEGIN_SRC emacs-lisp
   (menu-bar-mode -1)
@@ -285,7 +274,9 @@ version-controlled files so the Emacs customizations file is also disabled.
 
 *** ssh for tramp
 Default method for transferring files with Tramp.
+
 #+begin_src emacs-lisp
+
   (setq tramp-default-method "ssh")
 #+end_src
 
@@ -299,7 +290,9 @@ Default method for transferring files with Tramp.
 ** minor-modes
 *** whitespace-mode
 Visually displays trailing whitespace.
+
 #+BEGIN_SRC emacs-lisp
+
   (use-package whitespace
     :diminish global-whitespace-mode
     :init
@@ -310,13 +303,17 @@ Visually displays trailing whitespace.
 
 *** prettify-symbols-mode
 Various symbols will be replaced with nice looking unicode glyphs.
+
 #+BEGIN_SRC emacs-lisp
+
   (global-prettify-symbols-mode 1)
 #+END_SRC
 
 *** electric-pair-mode
 Matching closed brackets are inserted for any typed open bracket.
+
 #+BEGIN_SRC emacs-lisp
+
   (electric-pair-mode 1)
 #+END_SRC
 
@@ -402,40 +399,6 @@ Matching closed brackets are inserted for any typed open bracket.
   (fset 'yes-or-no-p 'y-or-n-p)
 #+END_SRC
 
-** eyeliner for modeline
-#+begin_src emacs-lisp
-  ;; (defun set-eyeliner-colors ()
-  ;;   (setq buffer-name-color "#ff0000")
-  ;;   (setq buffer-name-modified-color "#ff0000")
-  ;;   (setq eyeliner/warm-color (theme-color 'red))
-  ;;   (setq eyeliner/cool-color (theme-color 'cyan))
-  ;;   (setq eyeliner/plain-color (theme-color 'foreground))
-  ;;   (custom-set-faces
-  ;;    `(powerline-active0
-  ;;      ((t (:background ,(theme-color 'foreground)))))
-  ;;    `(powerline-inactive0
-  ;;      ((t (:background ,(theme-color 'foreground)))))
-  ;;    `(powerline-active1
-  ;;      ((t (:background ,(theme-color 'foreground)
-  ;;                       :foreground ,(theme-color 'background)))))
-  ;;    `(powerline-inactive1
-  ;;      ((t (:background ,(theme-color 'foreground)
-  ;;                       :foreground ,(theme-color 'background)))))
-  ;;    `(powerline-active2
-  ;;      ((t (:background ,(theme-color 'background)))))
-  ;;    `(powerline-inactive2
-  ;;      ((t (:background ,(theme-color 'background)))))))
-
-  ;; (eval `(use-package eyeliner
-  ;;    ;; :straight (eyeliner :type git :host github :repo "dustinlacewell/eyeliner")
-  ;;    :demand t
-  ;;    :straight (eyeliner :local-repo ,(my/project-directory "eyeliner"))
-  ;;    :config
-  ;;    (spaceline-helm-mode 1)
-  ;;    (set-eyeliner-colors)
-  ;;    (eyeliner/install)))
-#+end_src
-
 ** debug on error
 #+begin_src emacs-lisp
   (setq debug-on-error t)
@@ -452,10 +415,22 @@ Matching closed brackets are inserted for any typed open bracket.
            ("C-h k" . #'helpful-key)))
 #+end_src
 
+* deflayer
+#+begin_src emacs-lisp
+  (use-package deflayer
+    :straight (deflayer :type git :host github :repo "dustinlacewell/deflayer.el"))
+#+end_src
+
+* polymode
+#+begin_src emacs-lisp
+  (use-package polymode)
+#+end_src
+
 * org-mode
 ** straight.el fixes
 There are some issues with straight.el and org. These the following boilerplate
 fixes all that until [[https://github.com/raxod502/straight.el#installing-org-with-straightel][that is resolved]].
+
 *** fix-org-git-version
 #+begin_src emacs-lisp
   (defun fix-org-git-version ()
@@ -512,16 +487,21 @@ fixes all that until [[https://github.com/raxod502/straight.el#installing-org-wi
 
 ** look
 The following sections change how Org-mode documents look.
+
 *** indent by header level
 Hide the heading asterisks. Instead indent headings based on depth.
+
 #+begin_src emacs-lisp
+
   (with-eval-after-load 'org
     (add-hook 'org-mode-hook #'org-indent-mode))
 #+end_src
 
 *** pretty heading bullets
 Use nice unicode bullets instead of the default asterisks.
+
 #+begin_src emacs-lisp
+
   (use-package org-bullets
     :after (org)
     :config
@@ -532,7 +512,9 @@ Use nice unicode bullets instead of the default asterisks.
 Instead of the default =[#A]= and =[#C]= priority cookies, use little unicode arrows to
 indicate high and low priority. =[#B]=, which is the same as no priority, is shown as
 normal.
+
 #+begin_src emacs-lisp
+
   (with-eval-after-load 'org
     (defun nougat/org-pretty-compose-p (start end match)
       (if (or (string= match "[#A]") (string= match "[#C]"))
@@ -569,6 +551,7 @@ normal.
 
 ** feel
 The following sections change how it feels to use Org-mode.
+
 *** don't fold blocks on open
 #+begin_src emacs-lisp
   (with-eval-after-load 'org
@@ -594,27 +577,128 @@ instead insert the new heading after the end of the current entry.
 When you save, this section will ensure that there is a one-line space between each
 heading. This helps with the background color of code-blocks not showing up on folded
 headings.
+
 #+begin_src emacs-lisp
-  (with-eval-after-load 'org
-    (defun org-mode--ensure-one-blank-line ()
-      (save-excursion
-        (goto-char (point-min))
-        (while (re-search-forward "#\\+[a-z_]+\\s-\\*" nil t)
-          (replace-match "#+end_src
+  ;; (defun my/org-no-line-before-headlines ()
+  ;;   (beginning-of-buffer)
+  ;;   (while (re-search-forward "\n\\{3,\\}\\*" nil t)
+  ;;     (replace-match "\n\n*")))
 
-  ,*")
-          (call-interactively 'org-previous-visible-heading)
-          (call-interactively 'org-cycle)
-          (call-interactively 'org-cycle))
-        (org-save-outline-visibility t
-          (org-mode))))
+  ;; (defun my/org-one-line-after-headlines ()
+  ;;   (beginning-of-buffer)
+  ;;   (while (re-search-forward "^\\*+.*\n\\{2,\\}" nil t)
+  ;;     (outline-previous-heading)
+  ;;     (end-of-line)
+  ;;     (forward-char)
+  ;;     (while (looking-at "^[:space:]*$")
+  ;;       (kill-line))))
 
-    (add-hook
-     'org-mode-hook
-     (lambda () (add-hook
-                 'before-save-hook
-                 'org-mode--ensure-one-blank-line
-                 nil 'make-it-local))))
+  ;; (defun my/org-trim-headlines ()
+  ;;   (let ((markers nil))
+  ;;     (org-element-map (org-element-parse-buffer) '(headline)
+  ;;       (lambda (paragraph)
+  ;;         (let ((contents-end (org-element-property :contents-end paragraph))
+  ;;               (post-blank (org-element-property :post-blank paragraph))
+  ;;               (marker (make-marker)))
+  ;;           (goto-char contents-end)
+  ;;           (unless (eq 0 post-blank)
+  ;;             (set-marker marker contents-end)
+  ;;             (setq markers (append markers (list (cons marker post-blank))))))))
+  ;;     (--each markers (save-excursion
+  ;;                       (goto-char (car it))
+  ;;                       (kill-line (- (cdr it) 1))))))
+
+  ;; (defun my/org-element-type-at-point ()
+  ;;   (car (org-element-at-point)))
+
+  ;; (defun my/org-point-at-headline ()
+  ;;   (let* ((element-type (my/org-element-type-at-point)))
+  ;;     (eq 'headline element-type)))
+
+  ;; (defun my/org-nearest-fuzzy-anchor ()
+  ;;   (let* ((line-text (lambda () (buffer-substring-no-properties (line-beginning-position)
+  ;;                                                           (line-end-position))))
+  ;;          (still-searching (lambda () (and (not (my/org-point-at-headline))
+  ;;                                      (string-match "^[:space:]*$" (funcall line-text))))))
+  ;;     (while (funcall still-searching)
+  ;;       (previous-line))
+
+  ;;     (unless (my/org-point-at-headline)
+  ;;       (funcall line-text))))
+
+  ;; (defun my/org-cleanup ()
+  ;;   (interactive)
+  ;;   (let* ((olp (org-get-outline-path t t))
+  ;;          (fuzzy-anchor (my/org-nearest-fuzzy-anchor)))
+  ;;     (my/org-no-line-before-headlines)
+  ;;     (my/org-one-line-after-headlines)
+  ;;     (org-find-olp olp t)
+  ;;     (when fuzzy-anchor
+  ;;       (search-forward fuzzy-anchor))))
+
+  ;; (defun my/org-mark-elements (data types marker-prop &rest props)
+  ;;   (let ((markers nil))
+  ;;     (org-element-map data types
+  ;;       (lambda (element)
+  ;;         (let* ((marker (make-marker))
+  ;;                (marker-pos (org-element-property marker-prop element))
+  ;;                (prop-map (make-hash-table)))
+  ;;           (when marker-pos
+  ;;             (set-marker marker marker-pos)
+  ;;             (--each props (map-put! prop-map it (org-element-property it element)))
+  ;;             (setq markers (append markers (list (cons marker prop-map))))))))
+
+  ;;     markers))
+
+  ;; (defun my/org-visit-markers (markers)
+  ;;   (--each markers
+  ;;     (goto-char (car it))
+  ;;     (sit-for 1)))
+
+  ;; (defun my/org-visit-elements (types &optional data)
+  ;;   (setq data (or data (org-element-parse-buffer)))
+  ;;   (my/org-visit-markers (my/org-mark-elements data types :begin)))
+
+  ;; (defun my/org-trim-headlines ()
+  ;;   (save-excursion
+  ;;     (--each (my/org-mark-elements (org-element-parse-buffer) '(headline) :begin :pre-blank)
+  ;;       (let* ((prop-map (cdr it))
+  ;;              (pre-blank (map-elt prop-map :pre-blank)))
+  ;;         (when (> pre-blank 1)
+  ;;           (goto-char (car it))
+  ;;           (end-of-line)
+  ;;           (forward-char)
+  ;;           (sit-for 1)
+  ;;           (kill-line (max 0 pre-blank)))))))
+
+  ;; (defun my/org-trim-paragraphs ()
+  ;;   (save-excursion
+  ;;     (--each (my/org-mark-elements (org-element-parse-buffer) '(paragraph section src-block) :contents-end :post-blank)
+  ;;       (let* ((prop-map (cdr it))
+  ;;              (post-blank (map-elt prop-map :post-blank)))
+  ;;         (if (> post-blank 1)
+  ;;             (progn (goto-char (car it))
+  ;;              (sit-for 1)
+  ;;              (kill-line (max 0 (- post-blank 1))))
+  ;;           (when (eq 0 post-blank)
+  ;;             (goto-char (car it))
+  ;;             (end-of-line)
+  ;;             (forward-char)
+  ;;             (open-line 1)))))))
+
+  ;; (defun my/org-cleanup ()
+  ;;   (interactive)
+  ;;   (my/org-trim-headlines)
+  ;;   (my/org-trim-paragraphs))
+
+
+  ;; (with-eval-after-load 'org
+  ;;   (add-hook
+  ;;    'org-mode-hook
+  ;;    (lambda () (add-hook
+  ;;           'before-save-hook
+  ;;           'my/org-cleanup
+  ;;           nil 'make-it-local))))
 #+end_src
 
 *** initial visibility
@@ -626,13 +710,13 @@ headings.
 #+begin_src emacs-lisp
   (setq todo-keywords
         ;; normal workflow
-        '((("TODO" "t"
-            :icon "… "
-            :face org-todo-face)
-
-           ("DOING" "d"
+        '((("DOING" "d"
             :icon "🏃"
             :face org-doing-face)
+
+           ("TODO" "t"
+            :icon "… "
+            :face org-todo-face)
 
            ("DONE" "D"
             :icon "✓ "
@@ -743,6 +827,11 @@ headings.
       (-each it 'todo-finalize-agenda-for-state)))
 
   (add-hook 'org-agenda-finalize-hook 'todo-finalize-agenda)
+#+end_src
+
+** poly-org
+#+begin_src emacs-lisp
+  (use-package poly-org)
 #+end_src
 
 ** org-modules
@@ -935,7 +1024,9 @@ headings.
 
 ** outshine
 Outshine provides org-mode like functionality in other files like elisp source.
+
 #+begin_src emacs-lisp
+
   (use-package outshine
     :init (defvar outline-minor-mode-prefix "\M-#")
     :config (setq outshine-use-speed-commands t)
@@ -1001,7 +1092,7 @@ Outshine provides org-mode like functionality in other files like elisp source.
 
 ** don't prompt to confirm not prompting to confirm
 #+begin_src emacs-lisp
-(setq safe-local-variable-values '((org-confirm-elisp-link-function . nil)))
+  (setq safe-local-variable-values '((org-confirm-elisp-link-function . nil)))
 #+end_src
 
 * projectile
@@ -1021,7 +1112,9 @@ Projectile's default prefix is =C-c p=
 ** project discovery
 Customize =nougat-project-root= to set the location of the majority of your
 projects/repositories.
+
 #+begin_src emacs-lisp
+
   (projectile-discover-projects-in-directory
    (file-name-as-directory my/projects-directory))
   (projectile-discover-projects-in-directory
@@ -1060,7 +1153,9 @@ The following keys are bound by default:
 ** ace-jump-helm-line
 Use (=M-;= / =kbd-helm-ace-jump=) to show a unique letter combination next to each Helm
 candidate. Pressing a combination instantly selects that candidate.
+
 #+begin_src emacs-lisp
+
   (with-eval-after-load 'helm
     (use-package ace-jump-helm-line
       :commands ace-jump-helm-line
@@ -1071,15 +1166,24 @@ candidate. Pressing a combination instantly selects that candidate.
 
 ** helm-bookmarks
 Use (=C-x C-b= / =kbd-helm-bookmarks=) to manage bookmarks with Helm.
+
 #+begin_src emacs-lisp
+
   (with-eval-after-load 'helm
     (require 'helm-bookmark)
     (global-set-key (kbd "C-x C-b") 'helm-bookmark))
 #+end_src
 
+** helm-ag
+#+begin_src emacs-lisp
+  (use-package helm-ag)
+#+end_src
+
 ** helm-descbinds
 Use (=C-h b= / =kbd-helm-descbinds=) to inspect current bindings with Helm.
+
 #+begin_src emacs-lisp
+
   (use-package helm-descbinds
     :after (helm)
     :commands helm-descbinds
@@ -1090,7 +1194,9 @@ Use (=C-h b= / =kbd-helm-descbinds=) to inspect current bindings with Helm.
 ** helm-flyspell
 With =flyspell-mode= on, use (=C-;= / =kbd-helm-flyspell=) after a word to correct it with
 Helm.
+
 #+begin_src emacs-lisp
+
   (use-package helm-flyspell
     :after (helm)
     :commands helm-flyspell-correct
@@ -1100,7 +1206,9 @@ Helm.
 ** helm-org-rifle
 Use (=M-r= / =kbd-helm-org-rifle=) to rifle through the current org-mode buffer or
 all open org-mode buffers if one is not focused.
+
 #+begin_src emacs-lisp
+
   (use-package helm-org-rifle
     :after (helm org)
     :commands helm-org-rifle-current-buffer
@@ -1111,7 +1219,9 @@ all open org-mode buffers if one is not focused.
 ** helm-projectile
 Use (=C-x c p= / =kbd-helm-projectile=) to view the buffers and files in the current
 Projectile project.
+
 #+begin_src emacs-lisp
+
   (use-package helm-projectile
       :after (helm projectile)
       :commands helm-projectile
@@ -1123,11 +1233,12 @@ Projectile project.
 #+begin_src emacs-lisp
   (defvar helm-full-frame-threshold 0.75)
 
-  (defun helm-full-frame-hook ()
+  (when window-system
+    (defun helm-full-frame-hook ()
     (let ((threshold (* helm-full-frame-threshold (x-display-pixel-height))))
       (setq helm-full-frame (< (frame-height) threshold))))
 
-  (add-hook 'helm-before-initialize-hook 'helm-full-frame-hook)
+    (add-hook 'helm-before-initialize-hook 'helm-full-frame-hook))
 #+end_src
 
 ** filter nix wrappers
@@ -1140,7 +1251,9 @@ Projectile project.
 
 * magit
 Use (=C-x g= / =kbd-magit-status=) to open the best front-end to Git there is!
+
 #+BEGIN_SRC emacs-lisp
+
   (use-package magit
     :demand t
     :config
@@ -1217,7 +1330,9 @@ automatically update to display the help of the symbol before point.
 
 ** markdown-mode
 All the internet uses it.
+
 #+begin_src emacs-lisp
+
   (use-package markdown-mode
     :commands (markdown-mode gfm-mode)
     :mode (("README\\.md\\'" . gfm-mode)
@@ -1229,7 +1344,7 @@ All the internet uses it.
 ** python
 *** elpy
 #+begin_src emacs-lisp
-  (use-package elpy)
+  ;(use-package elpy)
 #+end_src
 
 ** typescript
@@ -1430,32 +1545,29 @@ All the internet uses it.
 * org-brain
 #+begin_src emacs-lisp
   (eval `(use-package org-brain
+           ;; :straight (helpful :type git :host github :repo "Kungsgeten/org-brain")
            :straight (org-brain :local-repo ,(my/source-directory "org-brain"))
            :config
-           (setq org-id-track-globally t)
-           (setq org-brain-visualize-default-choices 'all)
-           (setq org-brain-title-max-length 12)
-           (setq org-brain-include-file-entries t
-                 org-brain-file-entries-use-title t)
-           :bind (:map org-brain-visualize-mode-map
-                       ;; Navigation
-                       ("j" . backward-button)
-                       ("k" . forward-button)
-                       ("DEL" . org-brain-visualize-back)
-                       ("C-p" . my/org-brain-visualize-parent)
-                       ("C-n" . org-brain-visualize-child)
+           (setcdr org-brain-visualize-mode-map nil)
+           (setq org-brain-visualize-default-choices 'root
+                 org-brain-path "/home/ldlework/src/episteme/brain/"
+                 org-brain-include-file-entries t
+                 org-brain-scan-for-header-entries nil
+                 org-brain-file-entries-use-title t
+                 org-brain-show-full-entry t
+                 org-brain-show-text t
+                 org-id-track-globally t
+                 org-brain-vis-current-title-append-functions '(org-brain-entry-tags-string)
+                 org-brain-title-max-length 24)))
+#+end_src
 
-                       ;; Modification
-                       ("i" . org-brain-pin)
-
-                       ;; Relations
-                       )))
-
+** Navigation Helpers
+#+begin_src emacs-lisp
   (defun my/org-brain-visualize-parent ()
     (interactive)
     (when (org-brain-parents (org-brain-entry-at-pt)) (org-brain-visualize-parent (org-brain-entry-at-pt))))
 
-  (defun org-brain-visualize-child (entry &optional all)
+  (defun my/org-brain-visualize-child (entry &optional all)
     (interactive (list (org-brain-entry-at-pt)))
     (when (org-brain-children entry)
       (let* ((entries (if all (org-brain-children entry)
@@ -1465,18 +1577,123 @@ All the internet uses it.
                    ((equal 1 (length entries)) (car-safe entries))
                    ((not entries) (error (concat entry " has no children")))
                    (t (org-brain-choose-entry "Goto child: " entries nil t)))))
-      (org-brain-visualize child))))
+        (org-brain-visualize child))))
+
+  (defun my/next-button-with-category (category)
+    (let ((original-point (point))
+          (first-result (text-property-search-forward 'brain-category category t t)))
+      (when first-result
+            (goto-char (prop-match-beginning first-result)))
+      (when (eq original-point (point))
+        (beginning-of-buffer)
+        (let ((second-result (text-property-search-forward 'brain-category category t t)))
+          (when second-result
+            (goto-char (prop-match-beginning second-result))))
+        (when (eq 0 (point))
+          (goto-char original-point))
+        )
+      ))
+
+  (defun my/previous-button-with-category (category)
+    (let ((result (text-property-search-backwards 'brain-category category nil t)))))
+
+  (defun my/next-brain-child ()
+    (interactive)
+    (my/next-button-with-category 'child))
+
+  (defun my/next-brain-history ()
+    (interactive)
+    (my/next-button-with-category 'history))
+
+  (defun my/avy-brain-jump (category)
+    (avy-jump "\\<." :pred (lambda () (and (eq category (get-text-property (point) 'brain-category))
+                                      (eq (- (point) 1) (button-start (button-at (point))))))
+              :action (lambda (p) (goto-char (+ 1 p)) (push-button))))
+
+  (defun my/avy-brain-jump-history ()
+    (interactive)
+    (my/avy-brain-jump 'history))
+
+  (defun my/avy-brain-jump-child ()
+    (interactive)
+    (my/avy-brain-jump 'child))
+
+  (defun my/avy-brain-jump-parent ()
+    (interactive)
+    (my/avy-brain-jump 'parent))
+
+  (defun my/avy-brain-jump-friend ()
+    (interactive)
+    (my/avy-brain-jump 'friend))
+
+  (defun my/avy-brain-jump-sibling ()
+    (interactive)
+    (my/avy-brain-jump 'sibling))
+#+end_src
+
+** polybrain
+#+begin_src emacs-lisp
+  (eval `(use-package polybrain
+           :defer nil
+           :straight (polybrain :local-repo ,(my/project-directory "polybrain"))
+           :bind (
+                  :map org-brain-visualize-mode-map
+                  ("m" . org-brain-visualize-mind-map)
+                  ("<tab>" . backward-button)
+                  ("S-<tab>" . forward-button)
+                  ("DEL" . org-brain-visualize-back)
+                  ("r" . org-brain-open-resource)
+                  ("v" . org-brain-visualize)
+
+                  ("i" . org-brain-pin)
+                  ("T" . org-brain-set-title)
+                  ("t" . org-brain-set-tags)
+                  ("d" . org-brain-delete-entry)
+                  ("R" . org-brain-visualize-add-resource)
+                  ("o" . org-brain-goto-current)
+                  ("O" . org-brain-goto)
+
+                  ("c" . org-brain-add-child)
+                  ("C" . org-brain-remove-child)
+
+                  ("p" . org-brain-add-parent)
+                  ("P" . org-brain-remove-parent)
+
+                  ("f" . org-brain-add-friendship)
+                  ("F" . org-brain-remove-friendship)
+
+                  ("e" . org-brain-annotate-edge)
+
+
+                  ("M-p" . my/avy-brain-jump-parent)
+                  ("M-c" . my/avy-brain-jump-child)
+                  ("M-s" . my/avy-brain-jump-sibling)
+                  ("M-f" . my/avy-brain-jump-friend)
+                  ("M-h" . my/avy-brain-jump-history)
+
+
+                  :map poly-brain-mode-map
+                  ("C-x C-s" . polybrain-save)
+                  ("<M-SPC>" . polybrain-switch))))
+
+  ;; (require 'polybrain)
+#+end_src
+
+** search
+#+begin_src emacs-lisp
+  (defun episteme-search ()
+    (interactive)
+    (helm-do-ag (my/project-directory "episteme/brain"))
+    (let* ((p (point))
+           (f (org-brain-first-headline-position))
+           (adjusted-point (max 0 (- p f))))
+      (org-brain-visualize (file-name-sans-extension (buffer-name)))
+      (with-current-buffer "*org-brain*"
+        (let ((minmax (polybrain--get-point-min-max)))
+          (goto-char (+ (car minmax) adjusted-point))))))
 #+end_src
 
 * hydra
-
-Hydra provides an easy way to create little pop-up interfaces with a collection of
-related single-key bindings.
-
-#+begin_src emacs-lisp
-  (use-package hydra)
-#+end_src
-
 ** pretty-hydra
 [[https://github.com/jerrypnz/major-mode-hydra.el#pretty-hydra][Pretty-hydra]] provides a macro that makes it easy to get good looking Hydras.
 
@@ -1516,7 +1733,9 @@ form a stack.
 
 ** nougat-hydra
 This is the main macro for defining Hydras in Nougat.
+
 #+begin_src emacs-lisp
+
   (defun nougat--inject-hint (symbol hint)
     (-let* ((name (symbol-name symbol))
             (hint-symbol (intern (format "%s/hint" name)))
@@ -1570,7 +1789,7 @@ This is the main macro for defining Hydras in Nougat.
                       (a-assoc major-mode-hydra--body-cache ',mode ',body-symbol)))))
       (nougat--add-heads columns extra-heads)
       (when mode
-        (remf body :major-mode))
+        (cl-remf body :major-mode))
       `(progn
          (pretty-hydra-define ,name ,body ,columns)
          (nougat--inject-hint ',name ,extra-hint)
@@ -1682,7 +1901,9 @@ available major-mode hydra.
 
 ** hydra-help
 Many of the Emacs help facilities at your fingertips!
+
 #+begin_src emacs-lisp
+
   (nougat-hydra hydra-help (:color blue)
     ("Describe"
      (("c" describe-function "function")
@@ -1757,7 +1978,7 @@ Many of the Emacs help facilities at your fingertips!
         ("b" (helm-projectile-switch-to-buffer) "buffer")
         ("w" (hydra-treemacs/body) "workspace"))
        "Do"
-       (("s" (call-interactively 'helm-projectile-ag) "search")
+       (("s" (call-interactively 'helm-ag-project-root) "search")
         ("c" (org-projectile-helm-template-or-project) "capture"))
        "Cache"
        (("C" projectile-invalidate-cache "clear")
@@ -1959,11 +2180,58 @@ Many of the Emacs help facilities at your fingertips!
   (nougat-hydra hydra-brain (:color red :major-mode org-brain-visualize-mode)
     (
      "View"
-     (("m" org-brain-visualize-mind-map "mind-map"))
+     (("m" (polybrain-top-then 'org-brain-visualize-mind-map) "mind-map")
+      ("R" (polybrain-top-then 'org-brain-visualize-add-resource) "add resource")
+      ("M-SPC" polybrain-switch "switch"))
      "Navigate"
-     (("DEL" org-brain-visualize-back "back")
-      ("j" backward-button "backward")
-      ("k" forward-button "forward"))
+     (("o" (polybrain-top-then 'org-brain-visualize) "open")
+      ("DEL" (polybrain-top-then 'org-brain-visualize-back) "back")
+      ("M-p" (polybrain-top-then 'my/avy-brain-jump-parent) "parent")
+      ("M-c" (polybrain-top-then 'my/avy-brain-jump-child) "child")
+      ("M-f" (polybrain-top-then 'my/avy-brain-jump-friend) "friend")
+      ("M-s" (polybrain-top-then 'my/avy-brain-jump-sibling) "sibling")
+      ("M-h" (polybrain-top-then 'my/avy-brain-jump-history) "history")
+      ("r" (polybrain-top-then 'org-brain-open-resource) "open resource"))
+     "Relations"
+     (("c" (polybrain-top-then 'org-brain-add-child) "add child")
+      ("C" (polybrain-top-then 'org-brain-remove-child) "remove child")
+      ("p" (polybrain-top-then 'org-brain-add-parent) "add parent")
+      ("P" (polybrain-top-then 'org-brain-remove-parent) "remove parent")
+      ("f" (polybrain-top-then 'org-brain-add-friendship) "add friend")
+      ("F" (polybrain-top-then 'org-brain-remove-friendship) "remove friend"))
+     "Manipulate"
+     (("e" (polybrain-top-then 'org-brain-goto-current) "edit")
+      ("D" (polybrain-top-then 'org-brain-delete-entry) "delete")
+      ("t" (polybrain-top-then 'org-brain-set-tags) "tags")
+      ("i" (polybrain-top-then 'org-brain-pin) "pin"))
+     ))
+  (nougat-hydra hydra-brain (:color red :major-mode org-brain-visualize-mode)
+    (
+     "View"
+     (("m" (polybrain-top-then 'org-brain-visualize-mind-map) "mind-map")
+      ("R" (polybrain-top-then 'org-brain-visualize-add-resource) "add resource")
+      ("M-SPC" polybrain-switch "switch"))
+     "Navigate"
+     (("o" (polybrain-top-then 'org-brain-visualize) "open")
+      ("DEL" (polybrain-top-then 'org-brain-visualize-back) "back")
+      ("M-p" (polybrain-top-then 'my/avy-brain-jump-parent) "parent")
+      ("M-c" (polybrain-top-then 'my/avy-brain-jump-child) "child")
+      ("M-f" (polybrain-top-then 'my/avy-brain-jump-friend) "friend")
+      ("M-s" (polybrain-top-then 'my/avy-brain-jump-sibling) "sibling")
+      ("M-h" (polybrain-top-then 'my/avy-brain-jump-history) "history")
+      ("r" (polybrain-top-then 'org-brain-open-resource) "open resource"))
+     "Relations"
+     (("c" (polybrain-top-then 'org-brain-add-child) "add child")
+      ("C" (polybrain-top-then 'org-brain-remove-child) "remove child")
+      ("p" (polybrain-top-then 'org-brain-add-parent) "add parent")
+      ("P" (polybrain-top-then 'org-brain-remove-parent) "remove parent")
+      ("f" (polybrain-top-then 'org-brain-add-friendship) "add friend")
+      ("F" (polybrain-top-then 'org-brain-remove-friendship) "remove friend"))
+     "Manipulate"
+     (("e" (polybrain-top-then 'org-brain-goto-current) "edit")
+      ("D" (polybrain-top-then 'org-brain-delete-entry) "delete")
+      ("t" (polybrain-top-then 'org-brain-set-tags) "tags")
+      ("i" (polybrain-top-then 'org-brain-pin) "pin"))
      ))
 #+end_src
 
@@ -2078,6 +2346,7 @@ Many of the Emacs help facilities at your fingertips!
 
 * misc
 Miscellaneous packages that don't really need their own section.
+
 ** demo-it
 #+begin_src emacs-lisp
   (use-package demo-it
@@ -2101,6 +2370,12 @@ Miscellaneous packages that don't really need their own section.
 #+begin_src emacs-lisp
   (use-package poker
     :straight (poker :type git :host github :repo "mlang/poker.el"))
+#+end_src
+
+** decide-mode
+#+begin_src emacs-lisp
+  (use-package decide
+    :straight (decide :type git :host github :repo "lifelike/decide-mode"))
 #+end_src
 
 * entrypoint
@@ -2168,6 +2443,7 @@ Miscellaneous packages that don't really need their own section.
      (("n" (hera-push 'hydra-notes/body) "notes")
       ("g" (hera-push 'hydra-gist/body) "gist")
       ("B" org-brain-visualize "brain")
+      ("?" episteme-search "search brain")
       ("l" (progn (setq this-command 'sutysisku-search-helm)
                   (call-interactively 'sutysisku-search-helm)) "lojban"))))
 
@@ -2222,14 +2498,11 @@ The following line prevents the warning above:
 
 ** aesthetics
 *** theme
-
 #+begin_src emacs-lisp
   (load-file "/home/ldlework/.emacs.d/theme.el")
   (enable-theme 'xresources)
 #+end_src
-
 **** Automatically update theme
-
 #+begin_src emacs-lisp
   (defun theme-callback (event)
     (load-file "~/.config/wpg/formats/theme.el")
@@ -2242,7 +2515,6 @@ The following line prevents the warning above:
         (file-notify-add-watch
          "/home/ldlework/.config/wpg/formats/theme.el" '(change) 'theme-callback))
 #+end_src
-
 *** default font
 #+begin_src emacs-lisp
   (setq powerline-height 32)
@@ -2261,6 +2533,40 @@ The following line prevents the warning above:
    )
 #+end_src
 
+*** eyeliner for modeline
+#+begin_src emacs-lisp
+  (defun set-eyeliner-colors ()
+    (setq buffer-name-color "#ff0000")
+    (setq buffer-name-modified-color "#ff0000")
+    (setq eyeliner/warm-color (theme-color 'red))
+    (setq eyeliner/cool-color (theme-color 'cyan))
+    (setq eyeliner/plain-color (theme-color 'foreground))
+    (custom-set-faces
+     `(powerline-active0
+       ((t (:background ,(theme-color 'foreground)))))
+     `(powerline-inactive0
+       ((t (:background ,(theme-color 'foreground)))))
+     `(powerline-active1
+       ((t (:background ,(theme-color 'foreground)
+                        :foreground ,(theme-color 'background)))))
+     `(powerline-inactive1
+       ((t (:background ,(theme-color 'foreground)
+                        :foreground ,(theme-color 'background)))))
+     `(powerline-active2
+       ((t (:background ,(theme-color 'background)))))
+     `(powerline-inactive2
+       ((t (:background ,(theme-color 'background)))))))
+
+  (eval `(use-package eyeliner
+     ;; :straight (eyeliner :type git :host github :repo "dustinlacewell/eyeliner")
+     :demand t
+     :straight (eyeliner :local-repo ,(my/project-directory "eyeliner"))
+     :config
+     (spaceline-helm-mode 1)
+     (set-eyeliner-colors)
+     (eyeliner/install)))
+#+end_src
+
 ** core
 *** minor modes
 **** ispell-minor-mode
@@ -2274,23 +2580,31 @@ The following line prevents the warning above:
     :config (add-hook 'after-save-hook 'backup-each-save))
 #+END_SRC
 
+*** fix tooltips
+#+begin_src emacs-lisp
+  (setq x-gtk-use-system-tooltips nil)
+#+end_src
+
 ** org
 *** look
 **** theme customizations
 #+begin_src emacs-lisp
-  (use-package org-beautify-theme
-    :after (org)
-    :config
-    (setq org-fontify-whole-heading-line t)
-    (setq org-fontify-quote-and-verse-blocks t)
-    (setq org-hide-emphasis-markers t))
+  (when window-system
+    (use-package org-beautify-theme
+      :after (org)
+      :config
+      (setq org-fontify-whole-heading-line t)
+      (setq org-fontify-quote-and-verse-blocks t)
+      (setq org-hide-emphasis-markers t)))
 #+end_src
 
 ** language support
 *** python
 **** jedi
 [[https://github.com/tkf/emacs-jedi][Jedi]] is an auto-completion server for Python.
+
 #+BEGIN_SRC emacs-lisp
+
   (use-package jedi
     :init
     (progn
@@ -2389,6 +2703,6 @@ The following line prevents the warning above:
 
 ** postamble
 #+begin_src emacs-lisp
-  )
+)
 #+end_src
 

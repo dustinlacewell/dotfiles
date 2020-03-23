@@ -1,5 +1,3 @@
-;;; -*- lexical-binding: t; -*-
-
 (let ((bootstrap-file (concat user-emacs-directory "straight/repos/straight.el/bootstrap.el"))
       (bootstrap-version 3))
   (unless (file-exists-p bootstrap-file)
@@ -87,6 +85,7 @@
       `((".*" ,emacs-autosave-directory t)))
 
 ;; (setq backup-directory-alist `(("." . ,emacs-autosave-directory)))
+(setq make-backup-files nil)
 (setq backup-directory-alist nil)
 
 (setq kept-new-versions 10
@@ -205,37 +204,6 @@
 
 (fset 'yes-or-no-p 'y-or-n-p)
 
-;; (defun set-eyeliner-colors ()
-;;   (setq buffer-name-color "#ff0000")
-;;   (setq buffer-name-modified-color "#ff0000")
-;;   (setq eyeliner/warm-color (theme-color 'red))
-;;   (setq eyeliner/cool-color (theme-color 'cyan))
-;;   (setq eyeliner/plain-color (theme-color 'foreground))
-;;   (custom-set-faces
-;;    `(powerline-active0
-;;      ((t (:background ,(theme-color 'foreground)))))
-;;    `(powerline-inactive0
-;;      ((t (:background ,(theme-color 'foreground)))))
-;;    `(powerline-active1
-;;      ((t (:background ,(theme-color 'foreground)
-;;                       :foreground ,(theme-color 'background)))))
-;;    `(powerline-inactive1
-;;      ((t (:background ,(theme-color 'foreground)
-;;                       :foreground ,(theme-color 'background)))))
-;;    `(powerline-active2
-;;      ((t (:background ,(theme-color 'background)))))
-;;    `(powerline-inactive2
-;;      ((t (:background ,(theme-color 'background)))))))
-
-;; (eval `(use-package eyeliner
-;;    ;; :straight (eyeliner :type git :host github :repo "dustinlacewell/eyeliner")
-;;    :demand t
-;;    :straight (eyeliner :local-repo ,(my/project-directory "eyeliner"))
-;;    :config
-;;    (spaceline-helm-mode 1)
-;;    (set-eyeliner-colors)
-;;    (eyeliner/install)))
-
 (setq debug-on-error t)
 
 (use-package helpful :straight (helpful :type git :host github :repo "Wilfred/helpful"))
@@ -245,6 +213,11 @@
     :bind (("C-h f" . #'helpful-callable)
            ("C-h v" . #'helpful-variable)
            ("C-h k" . #'helpful-key)))
+
+(use-package deflayer
+  :straight (deflayer :type git :host github :repo "dustinlacewell/deflayer.el"))
+
+(use-package polymode)
 
 (defun fix-org-git-version ()
   "The Git version of org-mode.
@@ -332,38 +305,138 @@
 (with-eval-after-load 'org
   (setq org-insert-heading-respect-content nil))
 
-(with-eval-after-load 'org
-  (defun org-mode--ensure-one-blank-line ()
-    (save-excursion
-      (goto-char (point-min))
-      (while (re-search-forward "#\\+[a-z_]+\\s-\\*" nil t)
-        (replace-match "#+end_src
+;; (defun my/org-no-line-before-headlines ()
+;;   (beginning-of-buffer)
+;;   (while (re-search-forward "\n\\{3,\\}\\*" nil t)
+;;     (replace-match "\n\n*")))
 
-*")
-        (call-interactively 'org-previous-visible-heading)
-        (call-interactively 'org-cycle)
-        (call-interactively 'org-cycle))
-      (org-save-outline-visibility t
-        (org-mode))))
+;; (defun my/org-one-line-after-headlines ()
+;;   (beginning-of-buffer)
+;;   (while (re-search-forward "^\\*+.*\n\\{2,\\}" nil t)
+;;     (outline-previous-heading)
+;;     (end-of-line)
+;;     (forward-char)
+;;     (while (looking-at "^[:space:]*$")
+;;       (kill-line))))
 
-  (add-hook
-   'org-mode-hook
-   (lambda () (add-hook
-               'before-save-hook
-               'org-mode--ensure-one-blank-line
-               nil 'make-it-local))))
+;; (defun my/org-trim-headlines ()
+;;   (let ((markers nil))
+;;     (org-element-map (org-element-parse-buffer) '(headline)
+;;       (lambda (paragraph)
+;;         (let ((contents-end (org-element-property :contents-end paragraph))
+;;               (post-blank (org-element-property :post-blank paragraph))
+;;               (marker (make-marker)))
+;;           (goto-char contents-end)
+;;           (unless (eq 0 post-blank)
+;;             (set-marker marker contents-end)
+;;             (setq markers (append markers (list (cons marker post-blank))))))))
+;;     (--each markers (save-excursion
+;;                       (goto-char (car it))
+;;                       (kill-line (- (cdr it) 1))))))
+
+;; (defun my/org-element-type-at-point ()
+;;   (car (org-element-at-point)))
+
+;; (defun my/org-point-at-headline ()
+;;   (let* ((element-type (my/org-element-type-at-point)))
+;;     (eq 'headline element-type)))
+
+;; (defun my/org-nearest-fuzzy-anchor ()
+;;   (let* ((line-text (lambda () (buffer-substring-no-properties (line-beginning-position)
+;;                                                           (line-end-position))))
+;;          (still-searching (lambda () (and (not (my/org-point-at-headline))
+;;                                      (string-match "^[:space:]*$" (funcall line-text))))))
+;;     (while (funcall still-searching)
+;;       (previous-line))
+
+;;     (unless (my/org-point-at-headline)
+;;       (funcall line-text))))
+
+;; (defun my/org-cleanup ()
+;;   (interactive)
+;;   (let* ((olp (org-get-outline-path t t))
+;;          (fuzzy-anchor (my/org-nearest-fuzzy-anchor)))
+;;     (my/org-no-line-before-headlines)
+;;     (my/org-one-line-after-headlines)
+;;     (org-find-olp olp t)
+;;     (when fuzzy-anchor
+;;       (search-forward fuzzy-anchor))))
+
+;; (defun my/org-mark-elements (data types marker-prop &rest props)
+;;   (let ((markers nil))
+;;     (org-element-map data types
+;;       (lambda (element)
+;;         (let* ((marker (make-marker))
+;;                (marker-pos (org-element-property marker-prop element))
+;;                (prop-map (make-hash-table)))
+;;           (when marker-pos
+;;             (set-marker marker marker-pos)
+;;             (--each props (map-put! prop-map it (org-element-property it element)))
+;;             (setq markers (append markers (list (cons marker prop-map))))))))
+
+;;     markers))
+
+;; (defun my/org-visit-markers (markers)
+;;   (--each markers
+;;     (goto-char (car it))
+;;     (sit-for 1)))
+
+;; (defun my/org-visit-elements (types &optional data)
+;;   (setq data (or data (org-element-parse-buffer)))
+;;   (my/org-visit-markers (my/org-mark-elements data types :begin)))
+
+;; (defun my/org-trim-headlines ()
+;;   (save-excursion
+;;     (--each (my/org-mark-elements (org-element-parse-buffer) '(headline) :begin :pre-blank)
+;;       (let* ((prop-map (cdr it))
+;;              (pre-blank (map-elt prop-map :pre-blank)))
+;;         (when (> pre-blank 1)
+;;           (goto-char (car it))
+;;           (end-of-line)
+;;           (forward-char)
+;;           (sit-for 1)
+;;           (kill-line (max 0 pre-blank)))))))
+
+;; (defun my/org-trim-paragraphs ()
+;;   (save-excursion
+;;     (--each (my/org-mark-elements (org-element-parse-buffer) '(paragraph section src-block) :contents-end :post-blank)
+;;       (let* ((prop-map (cdr it))
+;;              (post-blank (map-elt prop-map :post-blank)))
+;;         (if (> post-blank 1)
+;;             (progn (goto-char (car it))
+;;              (sit-for 1)
+;;              (kill-line (max 0 (- post-blank 1))))
+;;           (when (eq 0 post-blank)
+;;             (goto-char (car it))
+;;             (end-of-line)
+;;             (forward-char)
+;;             (open-line 1)))))))
+
+;; (defun my/org-cleanup ()
+;;   (interactive)
+;;   (my/org-trim-headlines)
+;;   (my/org-trim-paragraphs))
+
+
+;; (with-eval-after-load 'org
+;;   (add-hook
+;;    'org-mode-hook
+;;    (lambda () (add-hook
+;;           'before-save-hook
+;;           'my/org-cleanup
+;;           nil 'make-it-local))))
 
 (setq org-startup-folded 'content)
 
 (setq todo-keywords
       ;; normal workflow
-      '((("TODO" "t"
-          :icon "… "
-          :face org-todo-face)
-
-         ("DOING" "d"
+      '((("DOING" "d"
           :icon "🏃"
           :face org-doing-face)
+
+         ("TODO" "t"
+          :icon "… "
+          :face org-todo-face)
 
          ("DONE" "D"
           :icon "✓ "
@@ -474,6 +547,8 @@
     (-each it 'todo-finalize-agenda-for-state)))
 
 (add-hook 'org-agenda-finalize-hook 'todo-finalize-agenda)
+
+(use-package poly-org)
 
 
 
@@ -716,6 +791,8 @@
   (require 'helm-bookmark)
   (global-set-key (kbd "C-x C-b") 'helm-bookmark))
 
+(use-package helm-ag)
+
 (use-package helm-descbinds
   :after (helm)
   :commands helm-descbinds
@@ -741,11 +818,12 @@
 
 (defvar helm-full-frame-threshold 0.75)
 
-(defun helm-full-frame-hook ()
+(when window-system
+  (defun helm-full-frame-hook ()
   (let ((threshold (* helm-full-frame-threshold (x-display-pixel-height))))
     (setq helm-full-frame (< (frame-height) threshold))))
 
-(add-hook 'helm-before-initialize-hook 'helm-full-frame-hook)
+  (add-hook 'helm-before-initialize-hook 'helm-full-frame-hook))
 
 (require 'helm-external)
 (setq helm-external-commands-list
@@ -815,7 +893,7 @@ context-help to false"
          ("\\.markdown\\'" . markdown-mode))
   :config (setq markdown-command "multimarkdown"))
 
-(use-package elpy)
+;(use-package elpy)
 
 (use-package typescript-mode)
 
@@ -955,32 +1033,26 @@ context-help to false"
   (yas-global-mode 1))
 
 (eval `(use-package org-brain
+         ;; :straight (helpful :type git :host github :repo "Kungsgeten/org-brain")
          :straight (org-brain :local-repo ,(my/source-directory "org-brain"))
          :config
-         (setq org-id-track-globally t)
-         (setq org-brain-visualize-default-choices 'all)
-         (setq org-brain-title-max-length 12)
-         (setq org-brain-include-file-entries t
-               org-brain-file-entries-use-title t)
-         :bind (:map org-brain-visualize-mode-map
-                     ;; Navigation
-                     ("j" . backward-button)
-                     ("k" . forward-button)
-                     ("DEL" . org-brain-visualize-back)
-                     ("C-p" . my/org-brain-visualize-parent)
-                     ("C-n" . org-brain-visualize-child)
-
-                     ;; Modification
-                     ("i" . org-brain-pin)
-
-                     ;; Relations
-                     )))
+         (setcdr org-brain-visualize-mode-map nil)
+         (setq org-brain-visualize-default-choices 'root
+               org-brain-path "/home/ldlework/src/episteme/brain/"
+               org-brain-include-file-entries t
+               org-brain-scan-for-header-entries nil
+               org-brain-file-entries-use-title t
+               org-brain-show-full-entry t
+               org-brain-show-text t
+               org-id-track-globally t
+               org-brain-vis-current-title-append-functions '(org-brain-entry-tags-string)
+               org-brain-title-max-length 24)))
 
 (defun my/org-brain-visualize-parent ()
   (interactive)
   (when (org-brain-parents (org-brain-entry-at-pt)) (org-brain-visualize-parent (org-brain-entry-at-pt))))
 
-(defun org-brain-visualize-child (entry &optional all)
+(defun my/org-brain-visualize-child (entry &optional all)
   (interactive (list (org-brain-entry-at-pt)))
   (when (org-brain-children entry)
     (let* ((entries (if all (org-brain-children entry)
@@ -990,9 +1062,114 @@ context-help to false"
                  ((equal 1 (length entries)) (car-safe entries))
                  ((not entries) (error (concat entry " has no children")))
                  (t (org-brain-choose-entry "Goto child: " entries nil t)))))
-    (org-brain-visualize child))))
+      (org-brain-visualize child))))
 
-(use-package hydra)
+(defun my/next-button-with-category (category)
+  (let ((original-point (point))
+        (first-result (text-property-search-forward 'brain-category category t t)))
+    (when first-result
+          (goto-char (prop-match-beginning first-result)))
+    (when (eq original-point (point))
+      (beginning-of-buffer)
+      (let ((second-result (text-property-search-forward 'brain-category category t t)))
+        (when second-result
+          (goto-char (prop-match-beginning second-result))))
+      (when (eq 0 (point))
+        (goto-char original-point))
+      )
+    ))
+
+(defun my/previous-button-with-category (category)
+  (let ((result (text-property-search-backwards 'brain-category category nil t)))))
+
+(defun my/next-brain-child ()
+  (interactive)
+  (my/next-button-with-category 'child))
+
+(defun my/next-brain-history ()
+  (interactive)
+  (my/next-button-with-category 'history))
+
+(defun my/avy-brain-jump (category)
+  (avy-jump "\\<." :pred (lambda () (and (eq category (get-text-property (point) 'brain-category))
+                                    (eq (- (point) 1) (button-start (button-at (point))))))
+            :action (lambda (p) (goto-char (+ 1 p)) (push-button))))
+
+(defun my/avy-brain-jump-history ()
+  (interactive)
+  (my/avy-brain-jump 'history))
+
+(defun my/avy-brain-jump-child ()
+  (interactive)
+  (my/avy-brain-jump 'child))
+
+(defun my/avy-brain-jump-parent ()
+  (interactive)
+  (my/avy-brain-jump 'parent))
+
+(defun my/avy-brain-jump-friend ()
+  (interactive)
+  (my/avy-brain-jump 'friend))
+
+(defun my/avy-brain-jump-sibling ()
+  (interactive)
+  (my/avy-brain-jump 'sibling))
+
+(eval `(use-package polybrain
+         :defer nil
+         :straight (polybrain :local-repo ,(my/project-directory "polybrain"))
+         :bind (
+                :map org-brain-visualize-mode-map
+                ("m" . org-brain-visualize-mind-map)
+                ("<tab>" . backward-button)
+                ("S-<tab>" . forward-button)
+                ("DEL" . org-brain-visualize-back)
+                ("r" . org-brain-open-resource)
+                ("v" . org-brain-visualize)
+
+                ("i" . org-brain-pin)
+                ("T" . org-brain-set-title)
+                ("t" . org-brain-set-tags)
+                ("d" . org-brain-delete-entry)
+                ("R" . org-brain-visualize-add-resource)
+                ("o" . org-brain-goto-current)
+                ("O" . org-brain-goto)
+
+                ("c" . org-brain-add-child)
+                ("C" . org-brain-remove-child)
+
+                ("p" . org-brain-add-parent)
+                ("P" . org-brain-remove-parent)
+
+                ("f" . org-brain-add-friendship)
+                ("F" . org-brain-remove-friendship)
+
+                ("e" . org-brain-annotate-edge)
+
+
+                ("M-p" . my/avy-brain-jump-parent)
+                ("M-c" . my/avy-brain-jump-child)
+                ("M-s" . my/avy-brain-jump-sibling)
+                ("M-f" . my/avy-brain-jump-friend)
+                ("M-h" . my/avy-brain-jump-history)
+
+
+                :map poly-brain-mode-map
+                ("C-x C-s" . polybrain-save)
+                ("<M-SPC>" . polybrain-switch))))
+
+;; (require 'polybrain)
+
+(defun episteme-search ()
+  (interactive)
+  (helm-do-ag (my/project-directory "episteme/brain"))
+  (let* ((p (point))
+         (f (org-brain-first-headline-position))
+         (adjusted-point (max 0 (- p f))))
+    (org-brain-visualize (file-name-sans-extension (buffer-name)))
+    (with-current-buffer "*org-brain*"
+      (let ((minmax (polybrain--get-point-min-max)))
+        (goto-char (+ (car minmax) adjusted-point))))))
 
 (use-package pretty-hydra
   :demand t
@@ -1068,7 +1245,7 @@ context-help to false"
                     (a-assoc major-mode-hydra--body-cache ',mode ',body-symbol)))))
     (nougat--add-heads columns extra-heads)
     (when mode
-      (remf body :major-mode))
+      (cl-remf body :major-mode))
     `(progn
        (pretty-hydra-define ,name ,body ,columns)
        (nougat--inject-hint ',name ,extra-hint)
@@ -1229,7 +1406,7 @@ context-help to false"
       ("b" (helm-projectile-switch-to-buffer) "buffer")
       ("w" (hydra-treemacs/body) "workspace"))
      "Do"
-     (("s" (call-interactively 'helm-projectile-ag) "search")
+     (("s" (call-interactively 'helm-ag-project-root) "search")
       ("c" (org-projectile-helm-template-or-project) "capture"))
      "Cache"
      (("C" projectile-invalidate-cache "clear")
@@ -1391,11 +1568,58 @@ context-help to false"
 (nougat-hydra hydra-brain (:color red :major-mode org-brain-visualize-mode)
   (
    "View"
-   (("m" org-brain-visualize-mind-map "mind-map"))
+   (("m" (polybrain-top-then 'org-brain-visualize-mind-map) "mind-map")
+    ("R" (polybrain-top-then 'org-brain-visualize-add-resource) "add resource")
+    ("M-SPC" polybrain-switch "switch"))
    "Navigate"
-   (("DEL" org-brain-visualize-back "back")
-    ("j" backward-button "backward")
-    ("k" forward-button "forward"))
+   (("o" (polybrain-top-then 'org-brain-visualize) "open")
+    ("DEL" (polybrain-top-then 'org-brain-visualize-back) "back")
+    ("M-p" (polybrain-top-then 'my/avy-brain-jump-parent) "parent")
+    ("M-c" (polybrain-top-then 'my/avy-brain-jump-child) "child")
+    ("M-f" (polybrain-top-then 'my/avy-brain-jump-friend) "friend")
+    ("M-s" (polybrain-top-then 'my/avy-brain-jump-sibling) "sibling")
+    ("M-h" (polybrain-top-then 'my/avy-brain-jump-history) "history")
+    ("r" (polybrain-top-then 'org-brain-open-resource) "open resource"))
+   "Relations"
+   (("c" (polybrain-top-then 'org-brain-add-child) "add child")
+    ("C" (polybrain-top-then 'org-brain-remove-child) "remove child")
+    ("p" (polybrain-top-then 'org-brain-add-parent) "add parent")
+    ("P" (polybrain-top-then 'org-brain-remove-parent) "remove parent")
+    ("f" (polybrain-top-then 'org-brain-add-friendship) "add friend")
+    ("F" (polybrain-top-then 'org-brain-remove-friendship) "remove friend"))
+   "Manipulate"
+   (("e" (polybrain-top-then 'org-brain-goto-current) "edit")
+    ("D" (polybrain-top-then 'org-brain-delete-entry) "delete")
+    ("t" (polybrain-top-then 'org-brain-set-tags) "tags")
+    ("i" (polybrain-top-then 'org-brain-pin) "pin"))
+   ))
+(nougat-hydra hydra-brain (:color red :major-mode org-brain-visualize-mode)
+  (
+   "View"
+   (("m" (polybrain-top-then 'org-brain-visualize-mind-map) "mind-map")
+    ("R" (polybrain-top-then 'org-brain-visualize-add-resource) "add resource")
+    ("M-SPC" polybrain-switch "switch"))
+   "Navigate"
+   (("o" (polybrain-top-then 'org-brain-visualize) "open")
+    ("DEL" (polybrain-top-then 'org-brain-visualize-back) "back")
+    ("M-p" (polybrain-top-then 'my/avy-brain-jump-parent) "parent")
+    ("M-c" (polybrain-top-then 'my/avy-brain-jump-child) "child")
+    ("M-f" (polybrain-top-then 'my/avy-brain-jump-friend) "friend")
+    ("M-s" (polybrain-top-then 'my/avy-brain-jump-sibling) "sibling")
+    ("M-h" (polybrain-top-then 'my/avy-brain-jump-history) "history")
+    ("r" (polybrain-top-then 'org-brain-open-resource) "open resource"))
+   "Relations"
+   (("c" (polybrain-top-then 'org-brain-add-child) "add child")
+    ("C" (polybrain-top-then 'org-brain-remove-child) "remove child")
+    ("p" (polybrain-top-then 'org-brain-add-parent) "add parent")
+    ("P" (polybrain-top-then 'org-brain-remove-parent) "remove parent")
+    ("f" (polybrain-top-then 'org-brain-add-friendship) "add friend")
+    ("F" (polybrain-top-then 'org-brain-remove-friendship) "remove friend"))
+   "Manipulate"
+   (("e" (polybrain-top-then 'org-brain-goto-current) "edit")
+    ("D" (polybrain-top-then 'org-brain-delete-entry) "delete")
+    ("t" (polybrain-top-then 'org-brain-set-tags) "tags")
+    ("i" (polybrain-top-then 'org-brain-pin) "pin"))
    ))
 
 (defun my/toggle-window-split (&optional arg)
@@ -1505,6 +1729,9 @@ context-help to false"
 (use-package poker
   :straight (poker :type git :host github :repo "mlang/poker.el"))
 
+(use-package decide
+  :straight (decide :type git :host github :repo "lifelike/decide-mode"))
+
 (setq ep-notes-file (my/org-file-name "notes.org"))
 
 (defun ep-notes-find-file () (find-file ep-notes-file))
@@ -1552,6 +1779,7 @@ context-help to false"
    (("n" (hera-push 'hydra-notes/body) "notes")
     ("g" (hera-push 'hydra-gist/body) "gist")
     ("B" org-brain-visualize "brain")
+    ("?" episteme-search "search brain")
     ("l" (progn (setq this-command 'sutysisku-search-helm)
                 (call-interactively 'sutysisku-search-helm)) "lojban"))))
 
@@ -1607,17 +1835,51 @@ context-help to false"
   (set-fontset-font "fontset-default" 'unicode "Symbola" nil)
  )
 
+(defun set-eyeliner-colors ()
+  (setq buffer-name-color "#ff0000")
+  (setq buffer-name-modified-color "#ff0000")
+  (setq eyeliner/warm-color (theme-color 'red))
+  (setq eyeliner/cool-color (theme-color 'cyan))
+  (setq eyeliner/plain-color (theme-color 'foreground))
+  (custom-set-faces
+   `(powerline-active0
+     ((t (:background ,(theme-color 'foreground)))))
+   `(powerline-inactive0
+     ((t (:background ,(theme-color 'foreground)))))
+   `(powerline-active1
+     ((t (:background ,(theme-color 'foreground)
+                      :foreground ,(theme-color 'background)))))
+   `(powerline-inactive1
+     ((t (:background ,(theme-color 'foreground)
+                      :foreground ,(theme-color 'background)))))
+   `(powerline-active2
+     ((t (:background ,(theme-color 'background)))))
+   `(powerline-inactive2
+     ((t (:background ,(theme-color 'background)))))))
+
+(eval `(use-package eyeliner
+   ;; :straight (eyeliner :type git :host github :repo "dustinlacewell/eyeliner")
+   :demand t
+   :straight (eyeliner :local-repo ,(my/project-directory "eyeliner"))
+   :config
+   (spaceline-helm-mode 1)
+   (set-eyeliner-colors)
+   (eyeliner/install)))
+
 (setq ispell-program-name (concat my/home-directory ".nix-profile/bin/aspell"))
 
 (use-package backup-each-save
   :config (add-hook 'after-save-hook 'backup-each-save))
 
-(use-package org-beautify-theme
-  :after (org)
-  :config
-  (setq org-fontify-whole-heading-line t)
-  (setq org-fontify-quote-and-verse-blocks t)
-  (setq org-hide-emphasis-markers t))
+(setq x-gtk-use-system-tooltips nil)
+
+(when window-system
+  (use-package org-beautify-theme
+    :after (org)
+    :config
+    (setq org-fontify-whole-heading-line t)
+    (setq org-fontify-quote-and-verse-blocks t)
+    (setq org-hide-emphasis-markers t)))
 
 (use-package jedi
   :init
