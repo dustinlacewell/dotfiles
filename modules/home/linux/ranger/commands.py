@@ -23,3 +23,32 @@ class rangershell(shell):
                     os.unlink(filename)
             except IOError:
                 pass
+
+
+class moveselected(Command):
+    """:moveselected <target_directory>"""
+
+    def execute(self):
+        cwd = self.fm.thisdir
+        cf = self.fm.thisfile
+        if not cwd or not cf:
+            self.fm.notify("Error: no file(s) selected", bad=True)
+            return
+        files = [f for f in self.fm.thistab.get_selection()]
+
+        target_dir = self.rest(1)
+        if not target_dir:
+            self.fm.notify("Error: target directory not specified", bad=True)
+            return
+
+        from os.path import join, expanduser, lexists
+        from os import makedirs
+        target_dir = join(self.fm.thisdir.path, expanduser(target_dir))
+        if not lexists(target_dir):
+            makedirs(target_dir)
+        for f in files:
+            self.fm.rename(f, join(target_dir, f.relative_path))
+
+
+    def tab(self):
+        return self._tab_directory_content()

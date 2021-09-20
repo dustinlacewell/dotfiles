@@ -4,6 +4,11 @@
  * Copyright: Étienne Deparis
  */
 
+configuration {{
+  show-icons:         true;
+  icon-theme:         "Papirus";
+}}
+
 * {{
     background:                  {background};
     foreground:                  {foreground};

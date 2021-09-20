@@ -8,8 +8,8 @@ from lib.theme import theme
 layout_settings = dict(
     margin=20,
     border_width=2,
-    border_normal=theme['foreground'],
-    border_focus=theme['red'],
+    border_normal=theme['background'],
+    border_focus=theme['foreground'],
 )
 
 layouts = [
@@ -25,6 +25,7 @@ floating_layout = layout.Floating(
         {'wmclass': 'ssh-askpass'},
         {'wname': 'pinentry'},
         {'wname': 'YAD'},
+        {'wname': 'pygame window'},
         {'wmclass': 'gmrun'},
     ],
     **layout_settings

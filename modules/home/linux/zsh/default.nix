@@ -20,8 +20,10 @@ with lib;
 
       sessionVariables = {
         EDITOR = "nano";
-        PATH = "$HOME/bin:/usr/local/bin:$PATH:$HOME/src/nix-virtualenv/bin";
+        PATH = "$HOME/bin:/usr/local/bin:$PATH:$HOME/src/nix-virtualenv/bin:$HOME/.npm/bin";
         ASPELL_CONF="dict-dir /run/current-system/sw/lib/aspell";
+        LANG = "en_US.UTF-8";
+        LC_ALL = "en_US.UTF-8";
       };
 
       initExtra = ''
@@ -31,7 +33,7 @@ with lib;
       oh-my-zsh = {
         enable = true;
         theme = "agnoster";
-        plugins = [ "common-aliases" "shink-path" ];
+        plugins = [];
       };
 
       plugins = [

@@ -2,6 +2,7 @@ from .battery import battery
 from .clock import clock
 from .currentlayout import currentlayout
 from .groupbox import groupbox
+from .spacer import spacer
 from .observer import observers
 from .spotify import spotify
 from .volume import volume

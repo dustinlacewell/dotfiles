@@ -1,5 +1,7 @@
+;; -*- lexical-binding: t -*-
+
 (let ((bootstrap-file (concat user-emacs-directory "straight/repos/straight.el/bootstrap.el"))
-      (bootstrap-version 3))
+      (bootstrap-version 5))
   (unless (file-exists-p bootstrap-file)
     (with-current-buffer
         (url-retrieve-synchronously
@@ -7,20 +9,30 @@
          'silent 'inhibit-cookies)
       (goto-char (point-max))
       (eval-print-last-sexp)))
-  (load bootstrap-file nil 'nomessage))
+  (load bootstrap-file nil 'nomessage)
+  (setq straight-vc-git-default-clone-depth 1))
 
 (setq straight-use-package-by-default t)
 (straight-use-package 'use-package)
 (use-package git) ;; ensure we can install from git sources
 
-(require 'cl)
+(require 'cl-lib)
+(require 'seq)
 (use-package f :demand t)          ;; files
 (use-package dash :demand t)       ;; lists
 (use-package ht :demand t)         ;; hash-tables
 (use-package s :demand t)          ;; strings
 (use-package a :demand t)          ;; association lists
 (use-package anaphora :demand t)   ;; anaphora
-;; (eval `(use-package ecl :demand t :straight (ecl :type git :local-repo ,(my/project-directory "ecl"))))
+
+(defun my/get-org-file (file-name)
+  (concat my/org-directory file-name))
+
+(defun my/get-project-directory (name)
+  (concat my/projects-directory name))
+
+(defun my/get-source-directory (name)
+  (concat my/sources-directory name))
 
 (when (string-equal system-type "gnu/linux")
   (defvar my/home-directory (expand-file-name "~/"))
@@ -28,7 +40,7 @@
   (defvar my/projects-directory (concat my/home-directory "src/"))
   (defvar my/sources-directory (concat my/home-directory "ext/"))
   (defvar my/org-directory (concat my/home-directory "org/"))
-  (defvar my/yas-directory (concat my/data-directory "yas/")))
+  (defvar my/yas-directory (concat my/data-directory "yasnippet/")))
 
 (when (string-equal system-type "windows-nt")
   (defvar my/home-directory (expand-file-name "b:/"))
@@ -39,63 +51,175 @@
   (defvar my/yas-directory (concat my/data-directory "Yas/"))
   (setq linkmarks-file (concat my/org-directory "bookmarks.org")))
 
-(defun my/org-file-name (file-name)
-  "Create file-name relative to my/org-directory"
-  (concat my/org-directory file-name))
-
-(defvar my/notes-file-name
-  (my/org-file-name "notes.org")
-  "Main notes file-name")
-
-(defvar my/bookmarks-file-name
-  (my/org-file-name "bookmarks.org")
-  "Main bookmarks file-name")
-
-(setq-default my/template-directory (concat my/org-directory "templates/"))
-
-(defun my/template-file-name (file-name)
-  "Create file-name relative to my/template-directory"
-  (concat my/template-directory file-name))
-
-(defun my/project-directory (name)
-  (concat my/projects-directory name))
-
-(defun my/source-directory (name)
-  (concat my/sources-directory name))
+(defvar my/notes-file-name (my/get-org-file "notes.org") "Main notes file-name")
+(defvar my/bookmarks-file-name (my/get-org-file "bookmarks.org") "Main bookmarks file-name")
+(defvar my/autosaves-directory (concat my/data-directory "autosaves/") "Main bookmarks file-name")
+(defvar my/backups-directory (concat my/data-directory "backups/") "Main bookmarks file-name")
 
 (setq browse-url-browser-function 'browse-url-chrome)
-(setq browse-url-chrome-program "qutebrowser")
+(setq browse-url-chrome-program "google-chrome-stable")
+
+(setq my/default-zoom-level 4)
+
+(defmacro :function (&rest body)
+  (if (->> body length (< 1))
+      `(lambda () ,@body)
+    (pcase (car body)
+      ;; command symbol
+      ((and v (pred commandp))
+       `(lambda () (call-interactively (quote ,v))))
+      ;; function symbol
+      ((and v (pred symbolp))
+       `(lambda () (,v)))
+      ;; quoted command symbol
+      ((and v (pred consp) (guard (eq 'quote (car v))) (pred commandp (cadr v)))
+       `(lambda () (call-interactively ,v)))
+      ;; quoted function symbol
+      ((and v (pred consp) (guard (eq 'quote (car v))))
+       `(lambda () (,(cadr v))))
+      ;; body forms
+      (_ `(lambda () ,@body) ))))
+
+(defmacro :command (&rest body)
+  (if (->> body length (< 1))
+      `(lambda () (interactive) ,@body)
+    (pcase (car body)
+      ;; command symbol
+      ((and v (pred commandp))
+       `(lambda () (interactive) (call-interactively (quote ,v))))
+      ;; function symbol
+      ((and v (pred symbolp))
+       `(lambda () (interactive) (,v)))
+      ;; quoted command symbol
+      ((and v (pred consp) (guard (eq 'quote (car v))) (pred commandp (cadr v)))
+       `(lambda () (interactive) (call-interactively ,v)))
+      ;; quoted function symbol
+      ((and v (pred consp) (guard (eq 'quote (car v))))
+       `(lambda () (interactive) (,(cadr v))))
+      ;; body forms
+      (_ `(lambda () (interactive) ,@body) ))))
+
+(defmacro :after (package &rest body)
+  "A simple wrapper around `with-eval-after-load'."
+  (declare (indent defun))
+  `(with-eval-after-load ',package ,@body))
+
+(defmacro :hook (hook-name &rest body)
+  "A simple wrapper around `add-hook'"
+  (declare (indent defun))
+  (let* ((hook-name (format "%s-hook" (symbol-name hook-name)))
+         (hook-sym (intern hook-name))
+         (first (car body))
+         (local (eq :local first))
+         (body (if local (cdr body) body))
+         (first (car body))
+         (body (if (consp first)
+                   (if (eq (car first) 'quote)
+                       first
+                     `(lambda () ,@body))
+                 `',first)))
+    `(add-hook ',hook-sym ,body nil ,local)))
+
+(defmacro :push (sym &rest body)
+  (declare (indent defun))
+  (if (consp body)
+      `(setq ,sym (-snoc ,sym ,@body))
+    `(add-to-list ,sym ,body)))
+
+(defmacro :bind (key &rest body)
+  (declare (indent defun))
+  (pcase key
+    ;; kbd string resolving symbol
+    ((and k (pred symbolp) (pred boundp) (guard (stringp (eval key))))
+     `(global-set-key (kbd ,(eval key)) ,(eval `(:command ,@body))))
+    ;; partial mode symbol
+    ((pred symbolp)
+     (let ((mode (intern (format "%s-map" key)))
+           (key (eval (car body)))
+           (body (eval `(:command ,@(cdr body)))))
+       `(define-key ,mode (kbd ,key) ,body)))
+    ;; global binding
+    (_ `(global-set-key (kbd ,key) ,(eval `(:command ,@body))))))
+
+(:bind "<f12>" (hera-start 'hydra-default/body))
+
+(:bind "<f13>" my/hydra-dwim)
+
+(:bind "C-c c" org-capture)
+
+(:bind "C-x g" magit-status)
+
+(:bind "M-<f12>" treemacs-dwim)
+(:bind "S-M-<f12>" (delete-window (treemacs-get-local-window)))
+
+(:after treemacs
+  (:bind treemacs-mode "f" treemacs-toggle-autopeek)
+  (:bind treemacs-mode "C-p"
+    (call-interactively 'treemacs-previous-line)
+    (when treemacs-autopeek-mode
+      (run-at-time "0.0 sec" nil 'call-interactively 'treemacs-peek)))
+  (:bind treemacs-mode "C-n"
+    (call-interactively 'treemacs-next-line)
+    (when treemacs-autopeek-mode
+      (run-at-time "0.0 sec" nil 'call-interactively 'treemacs-peek))))
+
+(:bind "M-p" backward-paragraph)
+(:bind "M-n" forward-paragraph)
+
+(:bind "C-c h" toggle-context-help)
 
 (set-face-foreground 'vertical-border "gray")
 
 (set-face-attribute 'fringe nil :background nil)
+
+(column-number-mode 1)
+
+(use-package doom-modeline
+  :ensure t
+  :config
+  (doom-modeline-def-modeline
+   'my-modeline
+
+   '(bar workspace-name window-number modals matches buffer-info remote-host selection-info)
+   '(objed-state misc-info buffer-position major-mode process vcs checker))
+
+  (doom-modeline-mode 1)
+  (setq doom-modeline-height 35)
+  (setq doom-modeline-bar-width 5)
+  :init
+  (defun setup-custom-doom-modeline ()
+    (doom-modeline-set-modeline 'my-modeline 'default))
+  (:hook doom-modeline-mode 'setup-custom-doom-modeline))
 
 (setq auto-save-default t)
 
 (setq auto-save-timeout 20
       auto-save-interval 20)
 
-(defvar emacs-autosave-directory
-  (expand-file-name (concat user-emacs-directory "autosaves/")))
-
-(unless (file-exists-p emacs-autosave-directory)
-    (make-directory emacs-autosave-directory))
+(unless (file-exists-p my/autosaves-directory)
+    (make-directory my/autosaves-directory))
 
 (setq auto-save-file-name-transforms
-      `((".*" ,emacs-autosave-directory t)))
+      `((".*" ,my/autosaves-directory t)))
 
-;; (setq backup-directory-alist `(("." . ,emacs-autosave-directory)))
-(setq make-backup-files nil)
-(setq backup-directory-alist nil)
+(use-package backup-each-save
+  :config (:hook after-save backup-each-save))
 
-(setq kept-new-versions 10
-      kept-old-verisons 0)
+(setq kept-new-versions 10)
 
 (setq delete-old-versions t)
 
 (setq backup-by-copying t)
 
 (setq vc-make-backup-files t)
+
+(unless (file-exists-p my/backups-directory)
+  (make-directory my/backups-directory))
+
+(setq backup-directory-alist
+      `((".*" . ,my/backups-directory)))
+
+(setq make-backup-files t)
 
 (setq-default cursor-type 'box)
 
@@ -115,22 +239,20 @@
 (setq-default indent-tabs-mode nil)
 
 (use-package visual-fill-column
-  :config (global-visual-fill-column-mode))
+  :config
+  (global-visual-fill-column-mode))
 
 (setq-default fill-column 79)
 
-(add-hook 'text-mode-hook 'turn-on-auto-fill)
+(:hook text-mode 'turn-on-auto-fill)
 
 (setq tramp-default-method "ssh")
 
-(global-set-key (kbd "M-p") 'backward-paragraph)
-(global-set-key (kbd "M-n") 'forward-paragraph)
-
 (use-package whitespace
-  :diminish global-whitespace-mode
-  :init
-  (setq whitespace-style
-        '(face tabs newline trailing tab-mark space-before-tab space-after-tab))
+  :custom
+  (whitespace-style
+   '(face tabs newline trailing tab-mark space-before-tab space-after-tab))
+  :config
   (global-whitespace-mode 1))
 
 (global-prettify-symbols-mode 1)
@@ -180,44 +302,210 @@
   :init
   (setq rainbow-delimiters-max-face-count 16)
   (set-random-rainbow-colors 0.6 0.7 0.5)
-  (add-hook 'prog-mode-hook 'rainbow-delimiters-mode))
+  (:hook prog-mode 'rainbow-delimiters-mode))
 
+(require 'paren)
 (show-paren-mode 1)
 (setq show-paren-delay 0)
-(require 'paren)
-(set-face-background 'show-paren-match nil)
-(set-face-background 'show-paren-mismatch nil)
-(set-face-foreground 'show-paren-match "#ff0")
-(set-face-foreground 'show-paren-mismatch "#f00")
-(set-face-attribute 'show-paren-match nil :weight 'extra-bold)
+(:after xresources
+  (set-face-foreground 'show-paren-match (theme-color 'green))
+  (set-face-foreground 'show-paren-mismatch "#f00")
+  (set-face-attribute 'show-paren-match nil :weight 'extra-bold)
+  (set-face-attribute 'show-paren-mismatch nil :weight 'extra-bold))
 
 (use-package which-key
-  :diminish which-key-mode
-  :config
+  :custom
   ;; sort single chars alphabetically P p Q q
-  (setq which-key-sort-order 'which-key-key-order-alpha)
-  (setq which-key-idle-delay 0.8)
+  (which-key-sort-order 'which-key-key-order-alpha)
+  (which-key-idle-delay 0.4)
+  :config
   (which-key-mode))
 
 (use-package company
-  :config (add-hook 'after-init-hook 'global-company-mode))
+  :config
+  (global-company-mode))
 
 (fset 'yes-or-no-p 'y-or-n-p)
 
+(use-package zoom-frm
+  :straight (zoom-frm :type git
+                      :host github
+                      :repo "emacsmirror/emacswiki.org"
+                      :files ("zoom-frm.el"))
+  :config
+  (dotimes (i my/default-zoom-level) (zoom-frm-in)))
+
+(use-package persistent-soft)
+
+(setq print-level 100
+      print-length 9999
+      eval-expression-print-level 100
+      eval-expression-print-length 9999)
+
 (setq debug-on-error t)
 
-(use-package helpful :straight (helpful :type git :host github :repo "Wilfred/helpful"))
+(use-package direnv
+ :config
+ (direnv-mode))
 
 (use-package helpful
     :straight (helpful :type git :host github :repo "Wilfred/helpful")
-    :bind (("C-h f" . #'helpful-callable)
+    :bind (("C-h s" . #'helpful-symbol)
+           ("C-h c" . #'helpful-command)
+           ("C-h f" . #'helpful-function)
            ("C-h v" . #'helpful-variable)
-           ("C-h k" . #'helpful-key)))
+           ("C-h k" . #'helpful-key)
+           ("C-h m" . #'helpful-mode)
+           ("C-h C-h" . #'helpful-at-point)))
 
-(use-package deflayer
-  :straight (deflayer :type git :host github :repo "dustinlacewell/deflayer.el"))
+(defun toggle-context-help ()
+  "Turn on or off the context help.
+Note that if ON and you hide the help buffer then you need to
+manually reshow it. A double toggle will make it reappear"
+  (interactive)
+  (with-current-buffer (help-buffer)
+    (unless (local-variable-p 'context-help)
+      (set (make-local-variable 'context-help) t))
+    (if (setq context-help (not context-help))
+        (progn
+           (if (not (get-buffer-window (help-buffer)))
+               (display-buffer (help-buffer)))))
+    (message "Context help %s" (if context-help "ON" "OFF"))))
 
-(use-package polymode)
+(defun context-help ()
+  "Display function or variable at point in *Help* buffer if visible.
+Default behaviour can be turned off by setting the buffer local
+context-help to false"
+  (interactive)
+  (let ((rgr-symbol (symbol-at-point))) ; symbol-at-point http://www.emacswiki.org/cgi-bin/wiki/thingatpt%2B.el
+    (with-current-buffer (help-buffer)
+     (unless (local-variable-p 'context-help)
+       (set (make-local-variable 'context-help) t))
+     (if (and context-help (get-buffer-window (help-buffer))
+         rgr-symbol)
+       (if (fboundp  rgr-symbol)
+           (describe-function rgr-symbol)
+         (if (boundp  rgr-symbol) (describe-variable rgr-symbol)))))))
+
+(defadvice eldoc-print-current-symbol-info
+  (around eldoc-show-c-tag activate)
+  (cond
+        ((eq major-mode 'emacs-lisp-mode) (context-help) ad-do-it)
+        ((eq major-mode 'lisp-interaction-mode) (context-help) ad-do-it)
+        ((eq major-mode 'apropos-mode) (context-help) ad-do-it)
+        (t ad-do-it)))
+
+(use-package projectile
+  :config
+  (setq projectile-enable-caching t)
+  (projectile-mode t))
+
+(setq projectile-project-root-files-bottom-up
+      '(".git" ".hg" "README.md" "README.org" "README")
+      projectile-project-search-path my/projects-directory
+      projectile-sort-order 'access-time)
+(projectile-discover-projects-in-directory my/projects-directory)
+(projectile-discover-projects-in-directory my/sources-directory)
+
+(use-package helm
+  :config
+  (helm-mode 1)
+  (require 'helm-config)
+  (:bind "M-x" helm-M-x)
+  (:bind "C-x C-f" helm-find-files)
+  (:bind "C-x b" helm-mini)
+  (:bind "C-c y" helm-show-kill-ring)
+  (:bind "C-x C-r" helm-recentf))
+
+(use-package ace-jump-helm-line
+  :config
+  (:bind helm "C-;" ace-jump-helm-line))
+
+(use-package helm-ag)
+
+(use-package helm-descbinds
+  :commands helm-descbinds
+  :config
+  (:bind "C-h b" helm-descbinds))
+
+(use-package helm-flyspell
+  :commands helm-flyspell-correct
+  :config
+  (:bind " M-SPC" helm-flyspell-correct)
+  (:hook org-mode flyspell-mode)
+  (:hook text-mode flyspell-mode)
+  (:hook fundamental-mode flyspell-mode))
+
+(use-package helm-projectile
+    :config
+    (projectile-cleanup-known-projects)
+    (setq projectile-completion-system 'helm))
+
+(defun projectile-readme ()
+    (interactive)
+    (let ((file-name (-find (lambda (f) (s-matches? "^readme" f))
+                            (projectile-current-project-files))))
+      (find-file (concat (projectile-project-root) "/" file-name))))
+
+(defun hydra-projectile-dwim ()
+    (interactive)
+    (if (string= "-" (projectile-project-name))
+        (helm-projectile)
+      (hydra-projectile/body)))
+
+(defvar helm-full-frame-threshold 0.75)
+
+(when window-system
+  (defun helm-full-frame-hook ()
+  (let ((threshold (* helm-full-frame-threshold (x-display-pixel-height))))
+    (setq helm-full-frame (< (frame-height) threshold))))
+
+  (:hook helm-before-initialize 'helm-full-frame-hook))
+
+(use-package treemacs
+  :config
+  (setq treemacs-width 25
+        treemacs-follow-mode -1
+        treemacs-tag-follow-mode -1
+        treemacs-is-never-other-window t
+        treemacs-follow-after-init t
+        treemacs-icon-open-png   (propertize "⊖ " 'face 'treemacs-directory-face)
+        treemacs-icon-closed-png (propertize "⊕ " 'face 'treemacs-directory-face))
+  (define-key treemacs-mode-map [mouse-1]
+    #'treemacs-single-click-expand-action))
+
+(use-package treemacs-projectile)
+(use-package treemacs-magit)
+
+(setq treemacs-autopeek-mode nil)
+
+(defun treemacs-toggle-autopeek ()
+  (interactive)
+  (if treemacs-autopeek-mode
+      (progn
+        (setq treemacs-autopeek-mode nil)
+        (message "Treemacs autopeek: OFF"))
+    (setq treemacs-autopeek-mode t)
+    (message "Treemacs autopeek: ON")))
+
+(defun treemacs-dwim ()
+  (interactive)
+  (pcase (treemacs-current-visibility)
+    ((or 'none 'exists)
+     (setq treemacs-previous-window (list (selected-frame) (selected-window)))
+     (treemacs))
+    ((and 'visible (guard (not (s-contains? "Treemacs-Scoped"
+                                            (buffer-name (current-buffer))))))
+     (setq treemacs-previous-window (list (selected-frame) (selected-window)))
+     (treemacs-select-window))
+    (_ (select-frame (car treemacs-previous-window))(select-window (cadr treemacs-previous-window)))))t
+
+(use-package yasnippet
+  :config
+  (setq yas-snippet-dirs `(,my/yas-directory))
+  (yas-global-mode 1))
+
+(use-package magit)
 
 (defun fix-org-git-version ()
   "The Git version of org-mode.
@@ -246,64 +534,76 @@
                "HEAD")))))
 
 (use-package org
-  :demand t
-  :mode ("\\.org\\'" . org-mode)
   :config
   ;; these depend on the 'straight.el fixes' above
   (defalias #'org-git-version #'fix-org-git-version)
   (defalias #'org-release #'fix-org-release)
   (require 'org-habit)
+  (require 'org-indent)
+  (add-to-list 'org-modules 'org-habit t)
   (require 'org-capture)
   (require 'org-tempo))
 
-(progn
-  (setq org-confirm-babel-evaluate nil)
-  (setq org-confirm-elisp-link-function nil)
-  (setq org-confirm-shell-link-function nil))
+(when window-system
+  (use-package org-beautify-theme
+    :after (org)
+    :config
+    (setq org-fontify-whole-heading-line t)
+    (setq org-fontify-quote-and-verse-blocks t)
+    (setq org-hide-emphasis-markers t)))
 
-(with-eval-after-load 'org
-  (add-hook 'org-mode-hook #'org-indent-mode))
+(setq my/org-pretty-symbols nil)
+(:hook org-mode
+  (setq-local prettify-symbols-alist my/org-pretty-symbols))
+
+(:hook org-mode 'org-indent-mode)
 
 (use-package org-bullets
-  :after (org)
+  :init
+  (:hook org-mode 'org-bullets-mode)
   :config
-  (add-hook 'org-mode-hook 'org-bullets-mode))
+  (setq org-bullets-bullet-list '("◉" "○" "✸" "•")))
 
-(with-eval-after-load 'org
-  (defun nougat/org-pretty-compose-p (start end match)
-    (if (or (string= match "[#A]") (string= match "[#C]"))
-        ;; prettify asterisks in headings
-        (org-match-line org-outline-regexp-bol)
-      ;; else rely on the default function
-      (funcall #'prettify-symbols-default-compose-p start end match)))
+(:push my/org-pretty-symbols
+  '("[#A]" . "⇑")
+  '("[#C]" . "⇓"))
 
-  (global-prettify-symbols-mode)
+;; only show priority cookie symbols on headings.
+(defun nougat/org-pretty-compose-p (start end match)
+  (if (or (string= match "[#A]") (string= match "[#C]"))
+      ;; prettify asterisks in headings
+      (org-match-line org-outline-regexp-bol)
+    ;; else rely on the default function
+    (funcall #'prettify-symbols-default-compose-p start end match)))
 
-  (add-hook
-   'org-mode-hook
-   (lambda ()
-     (setq-local prettify-symbols-compose-predicate #'nougat/org-pretty-compose-p)
-     (setq-local prettify-symbols-alist
-                 (todo-prettify-symbols-alist todo-keywords)))))
 
-(with-eval-after-load 'org
+(:hook org-mode (setq-local prettify-symbols-compose-predicate
+                            #'nougat/org-pretty-compose-p))
+
+(:after org
   (setq org-ellipsis " ▿"))
+
+(:push my/org-pretty-symbols
+  '("#+begin_src" . ">>")
+  '("#+end_src" . "·"))
 
 (defun org-realign-tags ()
   (interactive)
   (setq org-tags-column (- 0 (window-width)))
   (org-align-tags t))
 
-(add-hook 'window-configuration-change-hook 'org-realign-tags)
+;; (:hook window-configuration-change 'org-realign-tags)
 
-(with-eval-after-load 'org
-  (setq org-hide-block-startup nil))
+(setq org-startup-folded 'content)
 
-(with-eval-after-load 'org
-  (add-hook 'org-mode-hook 'turn-on-auto-fill))
+(setq org-hide-block-startup nil)
 
-(with-eval-after-load 'org
-  (setq org-insert-heading-respect-content nil))
+(:hook org-mode 'turn-on-auto-fill)
+
+(setq org-insert-heading-respect-content nil)
+
+(advice-add 'org-link--open-help :override
+            (lambda (path) (helpful-symbol (intern path))))
 
 ;; (defun my/org-no-line-before-headlines ()
 ;;   (beginning-of-buffer)
@@ -340,27 +640,6 @@
 ;; (defun my/org-point-at-headline ()
 ;;   (let* ((element-type (my/org-element-type-at-point)))
 ;;     (eq 'headline element-type)))
-
-;; (defun my/org-nearest-fuzzy-anchor ()
-;;   (let* ((line-text (lambda () (buffer-substring-no-properties (line-beginning-position)
-;;                                                           (line-end-position))))
-;;          (still-searching (lambda () (and (not (my/org-point-at-headline))
-;;                                      (string-match "^[:space:]*$" (funcall line-text))))))
-;;     (while (funcall still-searching)
-;;       (previous-line))
-
-;;     (unless (my/org-point-at-headline)
-;;       (funcall line-text))))
-
-;; (defun my/org-cleanup ()
-;;   (interactive)
-;;   (let* ((olp (org-get-outline-path t t))
-;;          (fuzzy-anchor (my/org-nearest-fuzzy-anchor)))
-;;     (my/org-no-line-before-headlines)
-;;     (my/org-one-line-after-headlines)
-;;     (org-find-olp olp t)
-;;     (when fuzzy-anchor
-;;       (search-forward fuzzy-anchor))))
 
 ;; (defun my/org-mark-elements (data types marker-prop &rest props)
 ;;   (let ((markers nil))
@@ -418,42 +697,10 @@
 ;;   (my/org-trim-paragraphs))
 
 
-;; (with-eval-after-load 'org
-;;   (add-hook
-;;    'org-mode-hook
-;;    (lambda () (add-hook
-;;           'before-save-hook
-;;           'my/org-cleanup
-;;           nil 'make-it-local))))
-
-(setq org-startup-folded 'content)
-
-(setq todo-keywords
-      ;; normal workflow
-      '((("DOING" "d"
-          :icon "🏃"
-          :face org-doing-face)
-
-         ("TODO" "t"
-          :icon "… "
-          :face org-todo-face)
-
-         ("DONE" "D"
-          :icon "✓ "
-          :face org-done-face
-          :done-state t))
-
-        ;; auxillary states
-        (("SOON" "s"
-          :icon "❗ "
-          :face org-soon-face)
-
-         ("SOMEDAY" "S"
-          :icon "🛌"
-          :face org-doing-face))))
-
-
-;; parsing
+;; (:after org
+;;   (:hook org-mode
+;;     (:hook before-save :local
+;;       (my/org-cleanup))))
 
 (defun todo-make-state-model (name key props)
   (append (list :name name :key key) props))
@@ -470,9 +717,6 @@
 
 (defun todo-parse-sequences-data (sequences-data)
   (mapcar 'todo-make-sequence-model sequences-data))
-
-
-;; org-todo-keywords
 
 (defun todo-keyword-name (name key)
   (if key (format "%s(%s)" name key) name))
@@ -499,11 +743,6 @@
   (mapcar 'todo-org-sequence (todo-parse-sequences-data sequences)))
 ;; (todo-org-todo-keywords todo-keywords)
 
-
-(with-eval-after-load 'org
-  (setq org-todo-keywords (todo-org-todo-keywords todo-keywords)))
-
-
 (defun todo-org-todo-keyword-faces (sequences)
   (cl-loop for sequence in (todo-parse-sequences-data sequences)
            append (cl-loop for state in sequence
@@ -511,9 +750,6 @@
                            for face = (plist-get state :face)
                            collect (cons name face))))
 ;; (todo-org-todo-keyword-faces todo-keywords)
-
-(with-eval-after-load 'org
-  (setq org-todo-keyword-faces (todo-org-todo-keyword-faces todo-keywords)))
 
 (defun todo-prettify-symbols-alist (sequences)
   (cl-loop for sequence in (todo-parse-sequences-data sequences)
@@ -528,7 +764,7 @@
     (beginning-of-buffer)
     (while (search-forward name nil 1)
       (let* ((line-props (text-properties-at (point)))
-             (line-props (ecl-plist-remove line-props 'face)))
+             (line-props (org-plist-delete line-props 'face)))
         (call-interactively 'set-mark-command)
         (search-backward name)
         (call-interactively 'kill-region)
@@ -542,349 +778,254 @@
   (beginning-of-buffer)
   (replace-regexp "[[:space:]]+[=]+" ""))
 
-(defun todo-finalize-agenda ()
-  (--each (todo-parse-sequences-data todo-keywords)
+(setq todo-keywords
+      ;; normal workflow
+      '((("DOING" "d" :icon "🏃" :face org-doing-face)
+         ("TODO" "t" :icon "□ " :face org-todo-face)
+         ("DONE" "D" :icon "✓ " :face org-done-face :done-state t))
+        ;; auxillary states
+        (("SOON" "s" :icon "❗ " :face org-soon-face)
+         ("SOMEDAY" "S" :icon "🛌" :face org-doing-face)))
+      org-todo-keywords (todo-org-todo-keywords todo-keywords)
+      org-todo-keyword-faces (todo-org-todo-keyword-faces todo-keywords))
+
+(--map (:push my/org-pretty-symbols it)
+       (todo-prettify-symbols-alist todo-keywords))
+
+(setq my/todo-sequences-data (todo-parse-sequences-data todo-keywords))
+(:hook org-agenda-finalize
+  (--each my/todo-sequences-data
     (-each it 'todo-finalize-agenda-for-state)))
 
-(add-hook 'org-agenda-finalize-hook 'todo-finalize-agenda)
+(defun my/todo-sort (a b)
+  (let* ((a-state (get-text-property 0 'todo-state a))
+         (b-state (get-text-property 0 'todo-state b))
+         (a-index (-elem-index a-state todo-keyword-order))
+         (b-index (-elem-index b-state todo-keyword-order)))
+    (pcase (- b-index a-index)
+      ((and v (guard (< 0 v))) 1)
+      ((and v (guard (> 0 v))) -1)
+      (default nil))))
 
-(use-package poly-org)
+(setq org-agenda-cmp-user-defined 'my/todo-sort
+      todo-keyword-order '("DOING" "SOON" "TODO" "SOMEDAY" "DONE"))
+
+(setq org-directory my/org-directory)
+
+(setq org-default-notes-file my/notes-file-name)
+
+(:after org
+  (:push org-capture-after-finalize-hook 'org-capture-goto-last-stored))
 
 
 
-(with-eval-after-load 'org
-  (org-babel-do-load-languages
-   'org-babel-load-languages
-   '((shell . t)
-     (emacs-lisp . t))))
+(use-package ob-csharp
+  :straight (ob-csharp :type git
+                       :host github
+                       :repo "thomas-villagers/ob-csharp"
+                       :files ("src/ob-csharp.el"))
+  :config
+  (:push org-babel-load-languages '(csharp . t)))
 
-(with-eval-after-load 'org
+(use-package ob-fsharp
+  :straight (ob-fsharp :type git
+                       :host github
+                       :repo "zweifisch/ob-fsharp"
+                       :files ("ob-fsharp.el"))
+  :config
+  (:push org-babel-load-languages '(fsharp . t)))
+
+(setq org-babel-load-languages
+      '((shell . t)
+        (emacs-lisp . t)
+        (python . t)
+        (js . t)
+        (csharp . t)
+        (fsharp . t)))
+
+(:after org
   (setq org-babel-default-header-args
         '((:session . "none")
-          (:results . "silent")
+          (:results . "replace")
           (:exports . "code")
           (:cache . "no")
           (:noweb . "no")
           (:hlines . "no")
           (:tangle . "no"))))
 
-(with-eval-after-load 'org
+(progn
   (setq org-confirm-babel-evaluate nil)
+  (setq org-confirm-elisp-link-function nil)
   (setq org-confirm-shell-link-function nil)
-  (setq org-confirm-elisp-link-function nil))
+  (setq safe-local-variable-values '((org-confirm-elisp-link-function . nil))))
+
+(:hook after-init
+  (org-babel-do-load-languages 'org-babel-load-languages
+                               org-babel-load-languages))
 
 (use-package helm-org)
 
+(use-package helm-org-rifle)
+
 (use-package org-projectile
   :config
-  (progn
-    (org-projectile-per-project)
-    (setq org-projectile-per-project-filepath "notes.org")
-    (add-to-list 'org-capture-templates
-                 (org-projectile-project-todo-entry
-                  :capture-character "l"
-                  :capture-heading "Linked Project TODO"))
-    (add-to-list 'org-capture-templates
-                 (org-projectile-project-todo-entry
-                  :capture-character "p"))
-    (setq org-confirm-elisp-link-function nil)))
+  (org-projectile-per-project)
+  (setq org-projectile-per-project-filepath "notes.org")
+  (:push org-capture-templates
+    (org-projectile-project-todo-entry
+     :capture-character "l"
+     :capture-heading "Linked Project TODO"))
+  (:push org-capture-templates
+    (org-projectile-project-todo-entry
+     :capture-character "p")))
 
 (use-package org-projectile-helm
   :after org-projectile
   :bind (("C-c n p" . org-projectile-helm-template-or-project)))
 
-(with-eval-after-load 'org
-  (setq org-default-notes-file (my/org-file-name "inbox.org")))
+(setq my/org-agenda-nested nil)
+(define-key org-agenda-mode-map (kbd "C-<return>")
+  (lambda () (interactive)
+    (unless my/org-agenda-nested
+      (setq my/org-agenda-nested t)
+      (with-current-buffer (marker-buffer (get-text-property (point) 'org-marker))
+        (org-agenda nil "a" "<")))))
 
-(with-eval-after-load 'org
-  (global-set-key (kbd "C-c c") 'org-capture))
+;; pop back to main agenda view, or quit
+(defun my/org-agenda-quit ()
+  (interactive)
+  (org-agenda-quit)
+  (when my/org-agenda-nested
+    (setq my/org-agenda-nested nil)
+    (org-agenda nil "a")))
 
-(with-eval-after-load 'org
-  (add-to-list 'org-capture-after-finalize-hook 'org-capture-goto-last-stored))
-
-
-
-(setq org-directory my/org-directory
-      org-agenda-todo-keyword-format ""
-      org-agenda-prefix-format '((todo . "  %(org-get-todo-state)"))
-      org-agenda-files (-filter 'f-exists? (append
-                                            (f-glob (my/org-file-name "*.org"))
-                                            (f-glob (my/project-directory "*/*.org"))
-                                            (f-glob (my/source-directory "*/*.org")))))
-
-(eval `(use-package org-super-agenda
-         ;; :straight (org-super-agenda
-         ;;            :local-repo ,(my/source-directory "org-super-agenda"))
-         :config (org-super-agenda-mode)))
+(define-key org-agenda-mode-map (kbd "q") 'my/org-agenda-quit)
 
 (defun org-agenda-transformer (it)
   (-let* (((blank todo rest) (s-split-up-to
                               "[[:blank:]]+"
                               (substring-no-properties it) 2))
-          (project-name (->> it
-                             (get-text-property 0 'org-marker)
-                             (marker-buffer)
-                             (buffer-file-name)
-                             (f-parent)
-                             (f-base)))
-          it)
-    (format "  %s %s / %s" todo project-name rest)))
+          (buffer-name (->> it
+                            (get-text-property 0 'org-marker)
+                            (marker-buffer)
+                            (buffer-file-name)))
+          (file-name (->> buffer-name f-filename))
+          (project-name (->> buffer-name (f-parent) (f-base)))
+          (text (s-collapse-whitespace
+                 (format "  %s %s/%s: %s" todo project-name file-name rest))))
+    (set-text-properties 0 (- (length text) 1) (text-properties-at 0 it) text)
+    text))
 
-(setq org-agenda-custom-commands
-      (list
-       (quote
-        ("a" "agenda view"
-         ((agenda "" ((org-agenda-span 'day)
-                      (org-super-agenda-groups
-                       '((:name "Today"
-                                :time-grid t
-                                :date today
-                                :todo "TODAY"
-                                :scheduled today
-                                :order 1)))))
-          (alltodo "" ((org-agenda-overriding-header "")
-                       (org-super-agenda-groups
-                        '((:name "Active"
-                                 :todo "DOING"
-                                 :order 1
-                                 :transformer (org-agenda-transformer it))
-                          (:name "Important"
-                                 :tag "Important"
-                                 :priority "A"
-                                 :order 6)
-                          (:name "Due Today"
-                                 :deadline today
-                                 :order 2)
-                          (:name "Overdue"
-                                 :deadline past
-                                 :order 7)
-                          (:name "Assignments"
-                                 :tag "Assignment"
-                                 :order 10)
-                          (:name "Issues"
-                                 :tag "Issue"
-                                 :order 12)
-                          (:name "Done"
-                                 :todo "DONE")
-                          (:discard (:anything t))))))
+(defun org-agenda-schedule-transformer (it)
+  (-let* (((_ _ _ rest) (s-split-up-to
+                         "[[:blank:]]+"
+                         (substring-no-properties it) 3))
+          (todo (get-text-property 0 'todo-state it))
+          (buffer-name (->> it
+                            (get-text-property 0 'org-marker)
+                            (marker-buffer)
+                            (buffer-file-name)))
+          (file-name (->> buffer-name f-filename))
+          (project-name (->> buffer-name (f-parent) (f-base)))
+          (text (s-collapse-whitespace
+                 (format "  %s %s/%s: %s" todo project-name file-name rest))))
+    (set-text-properties 0 (length text) (text-properties-at 0 it) text)
+    text))
 
-          (alltodo "" ((org-agenda-overriding-header "")
-                       (org-super-agenda-groups
-                        '((:auto-group-map
-                           (lambda (item)
-                             (-when-let* ((marker (or (get-text-property 0 'org-marker item)
-                                                      (get-text-property 0 'org-hd-marker item)))
-                                          (file-path (->> marker marker-buffer buffer-file-name))
-                                          (parent (f-dirname file-path))
-                                          (type (f-dirname parent)))
-                               (when (equal "src" (f-filename type))
-                                 (f-filename parent)))))
-                          (:discard (:anything t))))))
-          (alltodo "" ((org-agenda-overriding-header "")
-                       (org-super-agenda-groups
-                        '((:auto-group-map
-                           (lambda (item)
-                             (if (-contains? (get-text-property 0 'tags item) "mine")
-                                 (-when-let* ((marker (or (get-text-property 0 'org-marker item)
-                                                          (get-text-property 0 'org-hd-marker item)))
-                                              (file-path (->> marker marker-buffer buffer-file-name))
-                                              (parent (f-dirname file-path))
-                                              (type (f-dirname parent)))
-                                   ;; TODO this wont work on windows, use variables
-                                   (when (equal "ext" (f-filename type))
-                                     (f-filename parent))))))
-                          (:discard (:anything t)))))))))))
+(defun org-agenda-group-items (item)
+  (-when-let* ((new-marker (make-marker))
+               (marker (or (get-text-property 0 'org-marker item)
+                           (get-text-property 0 'org-hd-marker item)))
+               (file-path (->> marker marker-buffer buffer-file-name))
+               (file-name (f-filename file-path))
+               (directory (f-dirname file-path))
+               (directory-name (f-filename
+                                (or (projectile-root-bottom-up file-path) directory)))
+               (heading (s-replace "//" "/" (format "%s/%s" directory-name file-name))))
+    (set-marker new-marker 1 (marker-buffer marker))
+    (propertize heading 'org-marker new-marker 'org-hd-marker new-marker)))
 
-(eval `(use-package linkmarks
-         :straight (linkmarks :type git :host github :repo "dustinlacewell/linkmarks")
-         ;; :straight (linkmarks :type git :local-repo ,(my/project-directory "linkmarks/") :files ("linkmarks.el"))
-         ))
+(defun get-agenda-commands ()
+  '(("a" "agenda view"
+     ((agenda "" ((org-agenda-overriding-header "")
+                  (org-agenda-span 'day)
+                  (org-super-agenda-groups
+                   '((:name "Today"
+                            :transformer (org-agenda-schedule-transformer it)
+                            :scheduled today)
+                     (:name "Overdue"
+                            :transformer (org-agenda-schedule-transformer it)
+                            :scheduled past)))))
+      (alltodo "" ((org-agenda-overriding-header "")
+                   (org-super-agenda-groups
+                    '(;; (:name "Today" :time-grid t :date today :todo "TODAY" :scheduled today)
+                      (:discard (:scheduled today :scheduled past))
+                      (:name "Active" :todo "DOING" :transformer (org-agenda-transformer it))
+                      (:name "Important" :tag "Important" :priority "A")
+                      (:name "Some Day" :todo "SOMEDAY" :transformer (org-agenda-transformer it) :order 5)
+                      (:name "Todo" :auto-map org-agenda-group-items :todo "TODO")))))
+      ))))
+
+(use-package org-super-agenda
+  :config
+  (setq org-agenda-custom-commands (get-agenda-commands))
+  (org-super-agenda-mode))
+
+(setq org-agenda-todo-keyword-format ""
+      org-agenda-prefix-format '((todo . "  %(org-get-todo-state)")))
+
+(setq org-agenda-sorting-strategy
+      '((agenda habit-down time-up priority-down category-keep)
+        (todo user-defined-down priority-down category-keep)
+        (tags priority-down category-keep)
+        (search category-keep)))
+
+(setq org-agenda-files (->> (append (f-glob (my/get-org-file "*/*.org"))
+                                    (f-glob (my/get-project-directory "*/*.org")))
+                            (-filter 'f-exists?)))
+
+(use-package org-journal
+  :config
+  (setq org-journal-dir (concat my/org-directory "journal"))
+  (setq org-journal-file-type 'weekly)
+  (setq org-journal-start-on-weekday 5))
+
+(use-package org-fragtog
+  :config
+  (:hook org-mode 'org-fragtog-mode))
+
+(use-package linkmarks
+  :straight (linkmarks :type git :host github :repo "dustinlacewell/linkmarks"))
+
+(use-package org-ql)
+
+(use-package helm-org-walk
+  :straight (helm-org-walk :type git :host github :repo "dustinlacewell/helm-org-walk"))
+
+(load-file (expand-file-name "~/src/org-ls/org-ls.el"))
+
+(setq safe-local-variable-values '((org-confirm-elisp-link-function . nil)))
 
 (use-package outshine
   :init (defvar outline-minor-mode-prefix "\M-#")
   :config (setq outshine-use-speed-commands t)
   :hook ((emacs-lisp-mode . outshine-mode) (nix-mode . outshine-mode)))
 
-(eval `(use-package org-ql
-         :demand t
-         :straight (org-ql :type git :host github :repo "dustinlacewell/org-ql")
-         ;; :straight (org-ql :type git :local-repo ,(my/source-directory "org-ql"))
-         ))
-
-(eval `(use-package org-olp
-         :demand t
-         :straight (org-olp :type git :host github :repo "dustinlacewell/org-olp")
-         ;; :straight (org-olp :type git :local-repo ,(my/project-directory "org-olp"))
-         ))
-
-(defun get-candidates (filename query)
-  (let* ((headlines (eval `(org-ql ,filename ,query)))
-         (items (--map (plist-get it 'headline) headlines))
-         (items (--sort (< (plist-get it :begin)
-                           (plist-get other :begin)) items)))
-    (cl-loop for item in items
-             for olp = (with-temp-buffer
-                         (insert-file-contents filename)
-                         (org-mode)
-                         (goto-char (plist-get item :begin))
-                         (org-get-outline-path t))
-             for label = (string-join olp " / ")
-             collect (list label item))))
-
-;; (get-candidates (my/org-file-name "notes.org") '(todo "TODO"))
-
-(defun select-candidate (filename query)
-  (let* ((candidates (get-candidates filename query)))
-    (car (helm :sources
-               (helm-build-sync-source "active-todos"
-                 :candidates candidates
-                 :fuzzy-match t)))))
-
-;; (select-candidate (my/org-file-name "notes.org") '(todo "TODO"))
-
-(defun visit-candidate (filename query)
-  (let ((selection (select-candidate filename query)))
-    (find-file filename)
-    (goto-char (plist-get selection :begin))
-    (beginning-of-line)
-    (call-interactively 'org-shifttab)
-    (call-interactively 'org-cycle)))
-
-;; (visit-candidate my/notes-file-name '(todo))
-
-(defun i-read-this ()
-  (interactive)
-  (org-entry-add-to-multivalued-property nil "readby" user-login-name))
-
-(setq safe-local-variable-values '((org-confirm-elisp-link-function . nil)))
-
-(use-package projectile
-  :config
-  (setq projectile-enable-caching t)
-  (projectile-mode t))
-
-(projectile-discover-projects-in-directory
- (file-name-as-directory my/projects-directory))
-(projectile-discover-projects-in-directory
- (file-name-as-directory my/sources-directory))
-
-(use-package helm
-  :config
-  (helm-mode 1)
-  (require 'helm-config)
-
-  (global-set-key (kbd "M-x") 'helm-M-x)
-  (global-set-key (kbd "C-h f") 'helm-apropos)
-  (global-set-key (kbd "C-x C-f") 'helm-find-files)
-  (global-set-key (kbd "C-x b") 'helm-mini)
-  (global-set-key (kbd "C-c y") 'helm-show-kill-ring)
-  (global-set-key (kbd "C-x C-r") 'helm-recentf))
-
-(with-eval-after-load 'helm
-  (use-package ace-jump-helm-line
-    :commands ace-jump-helm-line
-    :config (define-key helm-map
-            (kbd "M-;")
-            'ace-jump-helm-line)))
-
-(with-eval-after-load 'helm
-  (require 'helm-bookmark)
-  (global-set-key (kbd "C-x C-b") 'helm-bookmark))
-
-(use-package helm-ag)
-
-(use-package helm-descbinds
-  :after (helm)
-  :commands helm-descbinds
-  :config
-  (global-set-key (kbd "C-h b") 'helm-descbinds))
-
-(use-package helm-flyspell
-  :after (helm)
-  :commands helm-flyspell-correct
-  :config (global-set-key (kbd "C-;") 'helm-flyspell-correct))
-
-(use-package helm-org-rifle
-  :after (helm org)
-  :commands helm-org-rifle-current-buffer
-  :config
-  (define-key org-mode-map (kbd "M-r") 'helm-org-rifle-current-buffer))
-
-(use-package helm-projectile
-    :after (helm projectile)
-    :commands helm-projectile
-    :config
-    (global-set-key (kbd "C-x c p") 'helm-projectile))
-
-(defvar helm-full-frame-threshold 0.75)
-
-(when window-system
-  (defun helm-full-frame-hook ()
-  (let ((threshold (* helm-full-frame-threshold (x-display-pixel-height))))
-    (setq helm-full-frame (< (frame-height) threshold))))
-
-  (add-hook 'helm-before-initialize-hook 'helm-full-frame-hook))
-
-(require 'helm-external)
-(setq helm-external-commands-list
-      (seq-filter (lambda (v) (not (string-match "^\\." v)))
-                  (helm-external-commands-list-1 'sort)))
-
-(use-package magit
-  :demand t
-  :config
-  (global-set-key (kbd "C-x g") 'magit-status))
-
-;; (use-package closql)
-;; (use-package forge
-;;   :demand t
-;;   :straight (forge :type git :host github :repo "magit/forge" :files ("lisp/*.el")))
-
 (use-package flycheck)
 
-(defun toggle-context-help ()
-  "Turn on or off the context help.
-Note that if ON and you hide the help buffer then you need to
-manually reshow it. A double toggle will make it reappear"
-  (interactive)
-  (with-current-buffer (help-buffer)
-    (unless (local-variable-p 'context-help)
-      (set (make-local-variable 'context-help) t))
-    (if (setq context-help (not context-help))
-        (progn
-           (if (not (get-buffer-window (help-buffer)))
-               (display-buffer (help-buffer)))))
-    (message "Context help %s" (if context-help "ON" "OFF"))))
-
-(defun context-help ()
-  "Display function or variable at point in *Help* buffer if visible.
-Default behaviour can be turned off by setting the buffer local
-context-help to false"
-  (interactive)
-  (let ((rgr-symbol (symbol-at-point))) ; symbol-at-point http://www.emacswiki.org/cgi-bin/wiki/thingatpt%2B.el
-    (with-current-buffer (help-buffer)
-     (unless (local-variable-p 'context-help)
-       (set (make-local-variable 'context-help) t))
-     (if (and context-help (get-buffer-window (help-buffer))
-         rgr-symbol)
-       (if (fboundp  rgr-symbol)
-           (describe-function rgr-symbol)
-         (if (boundp  rgr-symbol) (describe-variable rgr-symbol)))))))
-
-(defadvice eldoc-print-current-symbol-info
-  (around eldoc-show-c-tag activate)
-  (cond
-        ((eq major-mode 'emacs-lisp-mode) (context-help) ad-do-it)
-        ((eq major-mode 'lisp-interaction-mode) (context-help) ad-do-it)
-        ((eq major-mode 'apropos-mode) (context-help) ad-do-it)
-        (t ad-do-it)))
-
-(global-set-key (kbd "C-c h") 'toggle-context-help)
+(use-package macrostep
+  :straight (macrostep :type git :host github :repo "joddie/macrostep")
+  :config
+  (:bind emacs-lisp-mode "C-c e" macrostep-expand))
 
 (use-package lispy
+  :init
+  (:hook emacs-lisp-mode (lispy-mode 1))
+  (:hook lisp-interaction-mode (lispy-mode 1))
   :config
-  (add-hook 'emacs-lisp-mode-hook (lambda () (lispy-mode 1)))
-  (add-hook 'lisp-interaction-mode-hook (lambda () (lispy-mode 1))))
+  (:bind lispy-mode ":" self-insert-command)
+  (:bind lispy-mode "[" lispy-open-square)
+  (:bind lispy-mode "]" lispy-close-square))
 
 (use-package markdown-mode
   :commands (markdown-mode gfm-mode)
@@ -893,283 +1034,250 @@ context-help to false"
          ("\\.markdown\\'" . markdown-mode))
   :config (setq markdown-command "multimarkdown"))
 
-;(use-package elpy)
+(use-package elpy)
 
-(use-package typescript-mode)
+(use-package jedi
+  :init
+  (progn
+    (:hook python-mode jedi:setup)
+    (setq jedi:complete-on-dot t)))
 
-(use-package web-mode
-  :demand t
+(use-package js2-mode
   :config
-  (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))
-  (add-to-list 'auto-mode-alist '("\\.html?\\'" . web-mode))
-  (setq web-mode-engines-alist
-        '(("django"    . "\\.html\\'")))
-  (add-hook 'web-mode-hook
-            (lambda ()
-              (when (string-equal "tsx" (file-name-extension buffer-file-name))
-                (setup-tide-mode))))
-  ;; enable typescript-tslint checker
+  (:push auto-mode-alist '("\\.js\\'" . js2-mode))
+  (:hook js2-mode js2-imenu-extras-mode)
+  (define-key js2-mode-map (kbd "C-k") #'js2r-kill)
+  (define-key js-mode-map (kbd "M-.") nil)
+  (setq js2-include-node-externs t)
+  (setq js2-include-browser-externs t))
+
+(use-package xref-js2
+  :config
+  (:hook js2-mode
+    (:hook xref-backend-functions :local xref-js2-xref-backend)))
+
+(use-package js2-refactor
+  :config
+  (:hook js2-mode js2-refactor-mode)
+  (js2r-add-keybindings-with-prefix "C-c C-r"))
+
+(use-package company-tern
+  :config
+  (setq tern-command '("npx" "tern"))
+  (:push company-backends 'company-tern)
+  (:hook js2-mode
+    (tern-mode)
+    (company-mode))
+
+  ;; Disable completion keybindings, as we use xref-js2 instead
+  (define-key tern-mode-keymap (kbd "M-.") nil)
+  (define-key tern-mode-keymap (kbd "M-,") nil))
+
+(use-package typescript-mode
+  :config
   (flycheck-add-mode 'typescript-tslint 'web-mode))
 
-(use-package yaml-mode
-  :demand t
-  :config
-  (add-to-list 'auto-mode-alist '("\\.yml\\'" . yaml-mode)))
+(defun setup-tide-mode ()
+  (interactive)
+  (direnv-mode)
+  (direnv-update-environment)
+  (tide-setup)
+  (flycheck-mode +1)
+  (setq flycheck-check-syntax-automatically '(save mode-enabled))
+  (setq tide-hl-identifier-idle-time 0.0)
+  (eldoc-mode +1)
+  (tide-hl-identifier-mode +1)
+  (company-mode +1))
 
-(use-package less-css-mode)
+(use-package tide
+  :config
+  (:hook before-save tide-format-before-save)
+  (:hook typescript-mode setup-tide-mode)
+  (:push auto-mode-alist '("\\.tsx\\'" . web-mode))
+  (:hook web-mode
+    (when (string-equal "tsx" (file-name-extension buffer-file-name))
+      (setup-tide-mode)))
+
+  (:hook web-mode
+    (when (string-equal "tsx" (file-name-extension buffer-file-name))
+      (setup-tide-mode)))
+
+  (flycheck-add-mode 'typescript-tslint 'web-mode))
+
+(defun tide-cleanup-imports ()
+  (interactive)
+  (save-excursion
+    (tide-organize-imports)
+    (beginning-of-buffer)
+    (while (search-forward-regexp "^import[[:space:]]+[[:alpha:]{},[:space:]]+\"" nil t)
+      (embrace--insert ?\' (embrace--delete ?\" t)))
+    (beginning-of-buffer)
+    (when (search-forward-regexp "^import[[:space:]]+[[:alpha:]{},[:space:]]+\'[^[:alpha:]]" nil t)
+      (beginning-of-line)
+      (open-line 1))
+    (progn
+      (beginning-of-buffer)
+      ;; search for first non-import line
+      (while (or
+              (string-match "\\(^import\\|^//\\)" (thing-at-point 'line t))
+              (string-equal "\n" (thing-at-point 'line t)))
+        (end-of-line)
+        (forward-char))
+
+      ;; delete all preceeding whitespace
+      (while (progn (beginning-of-line)
+                    (backward-char)
+                    (beginning-of-line)
+                    (string-equal "\n" (thing-at-point 'line t)))
+        (kill-line))
+      (end-of-line)
+      (forward-char)
+      (open-line 2))
+    (tide-format)))
+
+(use-package nim-mode)
+
+(use-package yaml-mode
+  :config
+  (:push auto-mode-alist '("\\.yml\\'" . yaml-mode)))
+
+(use-package prettier-js
+  :config
+  (setq prettier-js-args '("--tab-width" "4" "--trailing-comma" "all")))
+
+(use-package add-node-modules-path)
+
+(use-package json-mode
+  :straight (json-mode :type git
+                       :host github
+                       :repo "kiennq/json-mode"
+                       :branch "feat/jsonc-mode")
+  :config
+  (setf auto-mode-alist (assoc-delete-all "\\(?:\\(?:\\.\\(?:b\\(?:\\(?:abel\\|ower\\)rc\\)\\|json\\(?:ld\\)?\\)\\|composer\\.lock\\)\\'\\)" auto-mode-alist))
+  (setf auto-mode-alist (assoc-delete-all "\\.json\\'" auto-mode-alist))
+  (:push auto-mode-alist '("\\.json\\'" . jsonc-mode)))
+
+(defun org-babel-execute:jsonc (body params)
+  "Execute a block of jsonc with org-babel."
+  body)
+
+(defun org-babel-execute:json (body params)
+  "Execute a block of json with org-babel."
+  body)
 
 (use-package web-mode
-  :config
-  (add-to-list 'auto-mode-alist '("\\.html\\'" . web-mode)))
-
-(use-package go-mode
-  :config (add-hook 'go-mode-hook
-                    (lambda ()
-                      (add-hook 'before-save-hook 'gofmt-before-save)
-                      (setq tab-width 4)
-                      (setq indent-tabs-mode 1))))
-
-;; (eval `(use-package sutysisku
-;;    :demand t
-;;    :straight (sutysisku :local-repo ,(my/project-directory "sutysisku.el/"))))
-
-(use-package rec-mode
-  :straight (rec-mode :type git :repo "https://git.savannah.gnu.org/git/recutils.git" :files ("etc/rec-mode.el")))
-
-(defun rec-books-save-hook ()
-  (message (buffer-name)))
-
-(use-package dockerfile-mode
   :demand t
   :config
-  (add-to-list 'auto-mode-alist '("Dockerfile\\'" . dockerfile-mode)))
+  (:push auto-mode-alist '("\\.tsx\\'" . web-mode))
+  (:push auto-mode-alist '("\\.jsx\\'" . web-mode))
+  (:push auto-mode-alist '("\\.html?\\'" . web-mode))
+  (:push web-mode-engines-alist '(("django"    . "\\.html\\'")))
+  (:hook web-mode (progn (prettier-js-mode)
+                         (setq web-mode-markup-indent-offset 4)))
+  (setq web-mode-content-types-alist '(("jsx" . "\\.js[x]?\\'")))
+  (setq-default flycheck-disabled-checkers
+                (append flycheck-disabled-checkers
+                        '(javascript-jshint json-jsonlist)))
+  (flycheck-add-mode 'javascript-eslint 'web-mode)
+  (add-hook 'after-init-hook #'global-flycheck-mode)
+  (add-hook 'flycheck-mode-hook 'add-node-modules-path))
 
-(defun nix-mode-make-regexp (parts)
-  (declare (indent defun))
-  (string-join parts "\\|"))
+(use-package go-mode
+  :config (:hook go-mode
+            (:hook before-save gofmt-before-save)
+            (setq tab-width 4)
+            (setq indent-tabs-mode 1)))
 
-(defun nix-mode-search-backward ()
-  (re-search-backward nix-mode-combined-regexp nil t))
+(use-package csharp-mode)
 
-(setq nix-mode-caps '(" =[ \n]" "\(" "\{" "\\[" "\\bwith " "\\blet\\b" "\\binherit\\b"))
-(setq nix-mode-ends '(";" "\)" "\\]" "\}" "\\bin\\b"))
-(setq nix-mode-quotes '("''" "\""))
-(setq nix-mode-caps-regexp (nix-mode-make-regexp nix-mode-caps))
-(setq nix-mode-ends-regexp (nix-mode-make-regexp nix-mode-ends))
-(setq nix-mode-quotes-regexp (nix-mode-make-regexp nix-mode-quotes))
-(setq nix-mode-combined-regexp (nix-mode-make-regexp (append nix-mode-caps nix-mode-ends nix-mode-quotes)))
+(:hook csharp-mode :local
+  (company-mode)
+  (flycheck-mode)
 
-(defun fixed-nix-indent-expression-start ()
-  (let* ((ends 0)
-         (once nil)
-         (done nil)
-         (indent (current-indentation)))
-    (save-excursion
-      ;; we want to indent this line, so we don't care what it contains
-      ;; skip to the beginning so reverse searching doesn't find any matches within
-      (beginning-of-line)
-      ;; search backward until an unbalanced cap is found or no cap or end is found
-      (while (and (not done) (nix-mode-search-backward))
-        (cond
-         ((looking-at nix-mode-quotes-regexp)
-          ;; skip over strings entirely
-          (re-search-backward nix-mode-quotes-regexp nil t))
-         ((looking-at nix-mode-ends-regexp)
-          ;; count the matched end
-          ;; this means we expect to find at least one more cap
-          (setq ends (+ ends 1)))
-         ((looking-at nix-mode-caps-regexp)
-          ;; we found at least one cap
-          ;; this means our function will return true
-          ;; this signals to the caller we handled the indentation
-          (setq once t)
-          (if (> ends 0)
-              ;; this cap corresponds to a previously matched end
-              ;; reduce the number of unbalanced ends
-              (setq ends (- ends 1))
-            ;; no unbalanced ends correspond to this cap
-            ;; this means we have found the expression that contains our line
-            ;; we want to indent relative to this line
-            (setq indent (current-indentation))
-            ;; signal that the search loop should exit
-            (setq done t))))))
-    ;; done is t when we found an unbalanced expression cap
-    (when done
-      ;; indent relative to the indentation of the expression containing our line
-      (indent-line-to (+ tab-width indent)))
-    ;; return t to the caller if we found at least one cap
-    ;; this signals that we handled the indentation
-    once))
+  (setq c-syntactic-indentation t)
+  (c-set-style "ellemtel")
+  (setq c-basic-offset 4)
+  (setq truncate-lines t)
+  (setq tab-width 4)
 
-(defun nix-mode-format ()
-  "Format the entire nix-mode buffer"
-  (interactive)
-  (when (eq major-mode 'nix-mode)
-    (save-excursion
-      (beginning-of-buffer)
-      (while (not (equal (point) (point-max)))
-        (if (equal (string-match-p "^[\s-]*$" (thing-at-point 'line)) 0)
-            (delete-horizontal-space)
-          (nix-indent-line))
-        (next-line)))))
+  (electric-pair-local-mode 1))
 
-(eval `(use-package nix-mode
-   ;; :straight (nix-mode :type git :local-repo ,(my/source-directory "nix-mode"))
-                                        ;:straight (nix-mode :type git :host github :repo "NixOS/nix-mode")
-   :config
-   (add-to-list 'auto-mode-alist '("\\.nix?\\'" . nix-mode))
-   (add-hook 'before-save-hook #'nix-mode-format)
-   (define-key nix-mode-map (kbd "TAB") 'nix-indent-line)
-   (setq nix-indent-function 'nix-indent-line)
-   (defalias
-     #'nix-indent-expression-start
-     #'fixed-nix-indent-expression-start)))
+(use-package fsharp-mode
+  :config
+  (require 'eglot)
+  (:push auto-mode-alist '("\\.fs[iylx]?$" . fsharp-mode)))
+
+(use-package dockerfile-mode
+  :mode "Dockerfile\\'")
+
+(use-package nix-mode
+  :straight (nix-mode :type git :host github :repo "NixOS/nix-mode")
+  :mode "\\.nix\\'"
+  :config
+  (remove-hook 'before-save-hook #'nix-mode-format))
 
 (use-package nix-sandbox)
 
-(use-package yasnippet
+(defun advice-unadvice (sym)
+  "Remove all advices from symbol SYM."
+  (interactive "aFunction symbol: ")
+  (advice-mapc (lambda (advice _props) (advice-remove sym advice)) sym))
+
+(defun elfeed-font-size-hook ()
+  (buffer-face-set '(:height 1.35)))
+
+(defun elfeed-visual-fill-hook ()
+  (visual-fill-column-mode--enable))
+
+(defun elfeed-show-refresh-advice (entry)
+  (elfeed-font-size-hook)
+  (visual-fill-column-mode 1)
+  (setq word-wrap 1)
+  (elfeed-show-refresh))
+
+(defun elfeed-show ()
+  (interactive)
+  (elfeed)
+  (delete-other-windows))
+
+(use-package elfeed
+  :bind (("C-x w" . elfeed-show))
   :config
-  (setq yas-snippet-dirs '(my/yas-directory))
-  (yas-global-mode 1))
+  (:hook elfeed-search-update elfeed-font-size-hook)
+  (advice-unadvice 'elfeed-show-entry)
+  (advice-add 'elfeed-show-entry :after 'elfeed-show-refresh-advice))
 
-(eval `(use-package org-brain
-         ;; :straight (helpful :type git :host github :repo "Kungsgeten/org-brain")
-         :straight (org-brain :local-repo ,(my/source-directory "org-brain"))
-         :config
-         (setcdr org-brain-visualize-mode-map nil)
-         (setq org-brain-visualize-default-choices 'root
-               org-brain-path "/home/ldlework/src/episteme/brain/"
-               org-brain-include-file-entries t
-               org-brain-scan-for-header-entries nil
-               org-brain-file-entries-use-title t
-               org-brain-show-full-entry t
-               org-brain-show-text t
-               org-id-track-globally t
-               org-brain-vis-current-title-append-functions '(org-brain-entry-tags-string)
-               org-brain-title-max-length 24)))
+(use-package elfeed-org
+  :after (elfeed)
+  :config
+  (elfeed-org)
+  (setq rmh-elfeed-org-files (list (my/get-org-file "notes.org"))))
 
-(defun my/org-brain-visualize-parent ()
-  (interactive)
-  (when (org-brain-parents (org-brain-entry-at-pt)) (org-brain-visualize-parent (org-brain-entry-at-pt))))
+(use-package embrace
+  :config
+  (embrace-add-pair (kbd "\;") "`" "`"))
 
-(defun my/org-brain-visualize-child (entry &optional all)
-  (interactive (list (org-brain-entry-at-pt)))
-  (when (org-brain-children entry)
-    (let* ((entries (if all (org-brain-children entry)
-                    (org-brain--linked-property-entries
-                     entry org-brain-children-property-name)))
-         (child (cond
-                 ((equal 1 (length entries)) (car-safe entries))
-                 ((not entries) (error (concat entry " has no children")))
-                 (t (org-brain-choose-entry "Goto child: " entries nil t)))))
-      (org-brain-visualize child))))
+(use-package htmlize)
 
-(defun my/next-button-with-category (category)
-  (let ((original-point (point))
-        (first-result (text-property-search-forward 'brain-category category t t)))
-    (when first-result
-          (goto-char (prop-match-beginning first-result)))
-    (when (eq original-point (point))
-      (beginning-of-buffer)
-      (let ((second-result (text-property-search-forward 'brain-category category t t)))
-        (when second-result
-          (goto-char (prop-match-beginning second-result))))
-      (when (eq 0 (point))
-        (goto-char original-point))
-      )
-    ))
+(use-package emacsql-sqlite)
 
-(defun my/previous-button-with-category (category)
-  (let ((result (text-property-search-backwards 'brain-category category nil t)))))
+(use-package gist
+  :straight (gist :type git :host github :repo "defunkt/gist.el"))
 
-(defun my/next-brain-child ()
-  (interactive)
-  (my/next-button-with-category 'child))
+(use-package poker
+  :straight (poker :type git :host github :repo "mlang/poker.el"))
 
-(defun my/next-brain-history ()
-  (interactive)
-  (my/next-button-with-category 'history))
+(use-package decide
+  :straight (decide :type git :host github :repo "lifelike/decide-mode"))
 
-(defun my/avy-brain-jump (category)
-  (avy-jump "\\<." :pred (lambda () (and (eq category (get-text-property (point) 'brain-category))
-                                    (eq (- (point) 1) (button-start (button-at (point))))))
-            :action (lambda (p) (goto-char (+ 1 p)) (push-button))))
+;; (eval `(use-package sutysisku
+;;    :demand t
+;;    :straight (sutysisku :local-repo ,(my/get-project-directory "sutysisku.el/"))))
 
-(defun my/avy-brain-jump-history ()
-  (interactive)
-  (my/avy-brain-jump 'history))
-
-(defun my/avy-brain-jump-child ()
-  (interactive)
-  (my/avy-brain-jump 'child))
-
-(defun my/avy-brain-jump-parent ()
-  (interactive)
-  (my/avy-brain-jump 'parent))
-
-(defun my/avy-brain-jump-friend ()
-  (interactive)
-  (my/avy-brain-jump 'friend))
-
-(defun my/avy-brain-jump-sibling ()
-  (interactive)
-  (my/avy-brain-jump 'sibling))
-
-(eval `(use-package polybrain
-         :defer nil
-         :straight (polybrain :local-repo ,(my/project-directory "polybrain"))
-         :bind (
-                :map org-brain-visualize-mode-map
-                ("m" . org-brain-visualize-mind-map)
-                ("<tab>" . backward-button)
-                ("S-<tab>" . forward-button)
-                ("DEL" . org-brain-visualize-back)
-                ("r" . org-brain-open-resource)
-                ("v" . org-brain-visualize)
-
-                ("i" . org-brain-pin)
-                ("T" . org-brain-set-title)
-                ("t" . org-brain-set-tags)
-                ("d" . org-brain-delete-entry)
-                ("R" . org-brain-visualize-add-resource)
-                ("o" . org-brain-goto-current)
-                ("O" . org-brain-goto)
-
-                ("c" . org-brain-add-child)
-                ("C" . org-brain-remove-child)
-
-                ("p" . org-brain-add-parent)
-                ("P" . org-brain-remove-parent)
-
-                ("f" . org-brain-add-friendship)
-                ("F" . org-brain-remove-friendship)
-
-                ("e" . org-brain-annotate-edge)
-
-
-                ("M-p" . my/avy-brain-jump-parent)
-                ("M-c" . my/avy-brain-jump-child)
-                ("M-s" . my/avy-brain-jump-sibling)
-                ("M-f" . my/avy-brain-jump-friend)
-                ("M-h" . my/avy-brain-jump-history)
-
-
-                :map poly-brain-mode-map
-                ("C-x C-s" . polybrain-save)
-                ("<M-SPC>" . polybrain-switch))))
-
-;; (require 'polybrain)
-
-(defun episteme-search ()
-  (interactive)
-  (helm-do-ag (my/project-directory "episteme/brain"))
-  (let* ((p (point))
-         (f (org-brain-first-headline-position))
-         (adjusted-point (max 0 (- p f))))
-    (org-brain-visualize (file-name-sans-extension (buffer-name)))
-    (with-current-buffer "*org-brain*"
-      (let ((minmax (polybrain--get-point-min-max)))
-        (goto-char (+ (car minmax) adjusted-point))))))
+(use-package plantuml-mode
+  :config
+  (setq plantuml-jar-path "/nix/store/slmi57xig7mbif52sf757arx5sbj2bni-plantuml-1.2020.15/lib/plantuml.jar")
+  (setq plantuml-default-exec-mode 'jar))
 
 (use-package pretty-hydra
   :demand t
@@ -1179,20 +1287,16 @@ context-help to false"
                           :files ("pretty-hydra.el")))
 
 (use-package major-mode-hydra
-  :demand t
   :straight (major-mode-hydra :type git :host github
                               :repo "jerrypnz/major-mode-hydra.el"
                               :branch "c6554ea"
-                              :files ("major-mode-hydra.el"))
-  :config
-  (global-set-key (kbd "C-<f19>") 'major-mode-hydra)
-  (global-set-key (kbd "C-<f12>") 'major-mode-hydra))
+                              :files ("major-mode-hydra.el")))
 
 (use-package hera
   :demand t
   :straight (hera :type git :host github :repo "dustinlacewell/hera"))
 
-(defun nougat--inject-hint (symbol hint)
+(defun :hydra/inject-hint (symbol hint)
   (-let* ((name (symbol-name symbol))
           (hint-symbol (intern (format "%s/hint" name)))
           (format-form (eval hint-symbol))
@@ -1201,7 +1305,7 @@ context-help to false"
           (amended-string (format "%s\n\n%s" format-string hint)))
     (setcar string-cdr amended-string)))
 
-(defun nougat--make-head-hint (head default-color)
+(defun :hydra/make-head-hint (head default-color)
   (-let (((key _ hint . rest) head))
     (when key
       (-let* (((&plist :color color) rest)
@@ -1210,135 +1314,70 @@ context-help to false"
               (propertized-key (propertize key 'face face)))
         (format " [%s]: %s" propertized-key hint)))))
 
-(defun nougat--make-hint (heads default-color)
+(defun :hydra/make-hint (heads default-color)
   (string-join
    (cl-loop for head in heads
-            for hint = (nougat--make-head-hint head default-color)
+            for hint = (:hydra/make-head-hint head default-color)
             do (pp hint)
             collect hint) "\n"))
 
-(defun nougat--clear-hint (head)
+(defun :hydra/clear-hint (head)
   (-let* (((key form _ . rest) head))
     `(,key ,form nil ,@rest)))
 
-(defun nougat--add-exit-head (heads)
+(defun :hydra/add-exit-head (heads)
   (let ((exit-head '("SPC" (hera-pop) "to exit" :color blue)))
     (append heads `(,exit-head))))
 
-(defun nougat--add-heads (columns extra-heads)
+(defun :hydra/add-heads (columns extra-heads)
   (let* ((cell (nthcdr 1 columns))
          (heads (car cell))
-         (extra-heads (mapcar 'nougat--clear-hint extra-heads)))
+         (extra-heads (mapcar ':hydra/clear-hint extra-heads)))
     (setcar cell (append heads extra-heads))))
 
-(defmacro nougat-hydra (name body columns &optional extra-heads)
+(defmacro :hydra (name body columns &optional extra-heads)
   (declare (indent defun))
   (-let* (((&plist :color default-color :major-mode mode) body)
-          (extra-heads (nougat--add-exit-head extra-heads))
-          (extra-hint (nougat--make-hint extra-heads default-color))
+          (extra-heads (:hydra/add-exit-head extra-heads))
+          (extra-hint (:hydra/make-hint extra-heads default-color))
           (body (plist-put body :hint nil))
           (body-name (format "%s/body" (symbol-name name)))
           (body-symbol (intern body-name))
+          (mode-body-name (major-mode-hydra--body-name-for mode))
           (mode-support
            `(when ',mode
-              (setq major-mode-hydra--body-cache
-                    (a-assoc major-mode-hydra--body-cache ',mode ',body-symbol)))))
-    (nougat--add-heads columns extra-heads)
+              (defun ,mode-body-name () (interactive) (,body-symbol)))))
+    (:hydra/add-heads columns extra-heads)
     (when mode
       (cl-remf body :major-mode))
     `(progn
        (pretty-hydra-define ,name ,body ,columns)
-       (nougat--inject-hint ',name ,extra-hint)
-       ,mode-support)))
+       (:hydra/inject-hint ',name ,extra-hint)
+       ,mode-support
+       )))
 
-;; (nougat-hydra hydra-test (:color red :major-mode fundamental-mode)
-;;   ("First"
-;;    (("a" (message "first - a") "msg a" :color blue)
-;;     ("b" (message "first - b") "msg b"))
-;;    "Second"
-;;    (("c" (message "second - c") "msg c" :color blue)
-;;     ("d" (message "second - d") "msg d"))))
+;; (macroexpand-all `(:hydra hydra-test (:color red :major-mode fundamental-mode)
+;;    ("First"
+;;     (("a" (message "first - a") "msg a" :color blue)
+;;      ("b" (message "first - b") "msg b"))
+;;     "Second"
+;;     (("c" (message "second - c") "msg c" :color blue)
+;;      ("d" (message "second - d") "msg d")))))
 
-(defun my/hydra-dwim ()
-  (interactive)
-  (-let (((&alist major-mode mode) major-mode-hydra--body-cache))
-    (if mode (major-mode-hydra)
-      (hera-start 'hydra-default/body))))
+;; (:hydra hydra-test (:color red :major-mode fundamental-mode)
+;;    ("First"
+;;     (("a" (message "first - a") "msg a" :color blue)
+;;      ("b" (message "first - b") "msg b"))
+;;     "Second"
+;;     (("c" (message "second - c") "msg c" :color blue)
+;;      ("d" (message "second - d") "msg d"))))
 
-(setq kbd-hera-pop "<f12>")
-(global-set-key (kbd "<f13>") 'my/hydra-dwim)
-(global-set-key (kbd "<f12>") (lambda () (interactive) (hera-start 'hydra-default/body)))
+(:hydra hydra-bookmarks (:color blue)
+  ("Bookmarks" (("n" (linkmarks-capture) "new")
+                ("b" (linkmarks-select) "browse")
+                ("e" (find-file my/bookmarks-file-name)))))
 
-(require 'seq)
-
-(defun helm-org-bm--element (regexp)
-  (search-forward-regexp regexp)
-  (next-line)
-  (org-element-context))
-
-(defun helm-org-bm--format (element)
-  (format "[[%s]]" (plist-get (nth 1 element) :raw-link)))
-
-(defun helm-org-bm--filter-candidates (canididates)
-  (cl-loop for c in candidates
-           for label = (nth 0 c)
-           for regexp = (nth 2 c)
-           for element = (helm-org-bm--element regexp)
-           if (equal 'link (car element))
-           collect (list label (helm-org-bm--format element))))
-
-(defun helm-org-bm--get-bookmarks ()
-  (let* ((org-refile-targets '((nil :maxlevel . 99)))
-         (candidates (org-refile-get-targets)))
-    (helm-org-bm--filter-candidates candidates)))
-
-(defun helm-org-bm--pick-bookmark (targets)
-  (let ((choice (completing-read ">" (mapcar 'car targets))))
-    (seq-find (lambda (i) (string-equal choice (car i))) targets)))
-
-(defun helm-org-bm-bookmark ()
-  (interactive)
-  (save-excursion
-    (with-temp-buffer
-      (insert-file-contents (my/org-file-name "bookmarks.org"))
-      (org-mode)
-      (outline-show-all)
-      (beginning-of-buffer)
-      (let* ((targets (helm-org-bm--get-bookmarks))
-             (choice (helm-org-bm--pick-bookmark targets))
-             (org-link-frame-setup '((file . find-file)))
-             (org-confirm-elisp-link-function nil))
-        (org-open-link-from-string (cadr choice) (current-buffer))))))
-
-(defun helm-org-bm-capture ()
-  (interactive)
-  (let ((org-capture-entry helm-org-bm-entry))
-    (setq org-refile-use-outline-path t)
-    (setq org-outline-path-complete-in-steps nil)
-    (setq org-refile-targets '((nil :maxlevel . 99)))
-    (ignore-errors (org-capture))))
-
-(setq helm-org-bm-entry
-      '("t" "Bookmark" entry (file (my/org-file-name "bookmarks.org"))
-        "* %^{Title}\n[[%?]]\n  added: %U" '(:kill-buffer)))
-
-(setq helm-org-bm-actions
-      '(("Open bookmark" . helm-org-bm--goto)
-        ("Go to heading" . helm-org-goto-marker)
-        ("Open in indirect buffer `C-c i'" .
-         helm-org--open-heading-in-indirect-buffer)
-        ("Refile heading(s) `C-c w`" .
-         helm-org--refile-heading-to)
-        ("Insert link to this heading `C-c l`" .
-         helm-org-insert-link-to-heading-at-marker)))
-
-(nougat-hydra hydra-bookmarks (:color blue)
-  ("Bookmarks" (("n" (helm-org-bm-capture) "new")
-                ("b" (helm-org-bm-bookmark) "bookmarks"))))
-
-(global-set-key (kbd "<f19>") 'major-mode-hydra)
-
-(nougat-hydra hydra-help (:color blue)
+(:hydra hydra-help (:color blue)
   ("Describe"
    (("c" describe-function "function")
     ("p" describe-package "package")
@@ -1378,42 +1417,14 @@ context-help to false"
   (set-mark-command nil)
   (set-mark-command nil))
 
-(nougat-hydra hydra-mark (:color pink)
+(:hydra hydra-mark (:color pink)
   ("Mark"
    (("m" push-mark "mark here")
     ("p" (lambda () (interactive) (set-mark-command '(4))) "previous")
     ("n" (lambda () (interactive) (unpop-to-mark-command)) "next")
     ("c" (lambda () (interactive) (setq mark-ring nil)) "clear"))))
 
-(defun projectile-readme ()
-    (interactive)
-    (let ((file-name (-find (lambda (f) (s-matches? "^readme" f))
-                            (projectile-current-project-files))))
-      (find-file (concat (projectile-project-root) "/" file-name))))
-
-(use-package helm-projectile :demand t
-  :config
-  (defun projectile-dwim ()
-    (interactive)
-    (if (string= "-" (projectile-project-name))
-        (helm-projectile-switch-project)
-      (hydra-projectile/body)))
-
-  (nougat-hydra hydra-projectile (:color blue)
-    ("Open"
-     (("f" (helm-projectile-find-file-dwim) "file")
-      ("p" (helm-projectile-switch-project) "project")
-      ("b" (helm-projectile-switch-to-buffer) "buffer")
-      ("w" (hydra-treemacs/body) "workspace"))
-     "Do"
-     (("s" (call-interactively 'helm-ag-project-root) "search")
-      ("c" (org-projectile-helm-template-or-project) "capture"))
-     "Cache"
-     (("C" projectile-invalidate-cache "clear")
-      ("x" (projectile-remove-known-project) "remove project")
-      ("X" (projectile-cleanup-known-projects) "cleanup")))))
-
-(nougat-hydra hydra-registers (:color pink)
+(:hydra hydra-registers (:color pink)
   ("Point"
    (("r" point-to-register "save point")
     ("j" jump-to-register "jump")
@@ -1431,7 +1442,7 @@ context-help to false"
 (use-package ace-window)
 (winner-mode 1)
 
-(nougat-hydra hydra-window (:color red)
+(:hydra hydra-window (:color red)
   ("Jump"
    (("h" windmove-left "left")
     ("l" windmove-right "right")
@@ -1450,57 +1461,100 @@ context-help to false"
     ("R" winner-redo "redo")
     ("t" nougat-hydra-toggle-window "toggle"))))
 
-(defun my/toggle-window-split (&optional arg)
-    "Switch between 2 windows split horizontally or vertically.
-    With ARG, swap them instead."
-    (interactive "P")
-    (unless (= (count-windows) 2)
-      (user-error "Not two windows"))
-    ;; Swap two windows
-    (if arg
-        (let ((this-win-buffer (window-buffer))
-              (next-win-buffer (window-buffer (next-window))))
-          (set-window-buffer (selected-window) next-win-buffer)
-          (set-window-buffer (next-window) this-win-buffer))
-      ;; Swap between horizontal and vertical splits
-      (let* ((this-win-buffer (window-buffer))
-             (next-win-buffer (window-buffer (next-window)))
-             (this-win-edges (window-edges (selected-window)))
-             (next-win-edges (window-edges (next-window)))
-             (this-win-2nd (not (and (<= (car this-win-edges)
-                                         (car next-win-edges))
-                                     (<= (cadr this-win-edges)
-                                         (cadr next-win-edges)))))
-             (splitter
-              (if (= (car this-win-edges)
-                     (car (window-edges (next-window))))
-                  'split-window-horizontally
-                'split-window-vertically)))
-        (delete-other-windows)
-        (let ((first-win (selected-window)))
-          (funcall splitter)
-          (if this-win-2nd (other-window 1))
-          (set-window-buffer (selected-window) this-win-buffer)
-          (set-window-buffer (next-window) next-win-buffer)
-          (select-window first-win)
-          (if this-win-2nd (other-window 1))))))
+(:hydra hydra-zoom (:color red)
+  ("Buffer"
+   (("i" text-scale-increase "in")
+    ("o" text-scale-decrease "out"))
+   "Frame"
+   (("I" zoom-frm-in "in")
+    ("O" zoom-frm-out "out")
+    ("r" toggle-zoom-frame "reset" :color blue))))
 
-(nougat-hydra hydra-yank-pop (:color red)
+(:hydra hydra-nix (:color blue)
+  ("Nix" (("p" (progn (find-file (my/get-org-file "nixpkgs.org"))
+                      (helm-org-in-buffer-headings)
+                      (recenter-top-bottom 1)
+                      (org-narrow-to-subtree)
+                      (sit-for 5)
+                      (widen)) "nixpkgs"))))
+
+(:hydra hydra-docs (:color blue)
+  ("Docs" (("n" (hera-push 'hydra-nix/body) "Nix"))))
+
+(require 'helm-org-walk)
+
+(:hydra hydra-notes (:color blue)
+  ("Notes"
+   (("o" (helm-org-walk '(4)) "open")
+    ("s" (helm-org-rifle-org-directory) "search")
+    ("S" (helm-org-rifle-occur-org-directory) "occur")
+    ("q" (helm-org-ql-org-directory) "query")
+    ("n" (helm-org-walk my/notes-file-name) "notes"))))
+
+(:hydra hydra-gist (:color blue)
+  ("Gist" (("p" (gist-region-or-buffer) "public")
+           ("P" (gist-region-or-buffer-private) "private")
+           ("b" (browse-url "https://gist.github.com/dustinlacewell") "browse"))))
+
+(:hydra hydra-projectile (:color blue)
+  ("Open"
+   (("o" (helm-projectile-switch-project) "project")
+    ("p" (helm-projectile) "project asset")
+    ("f" (helm-projectile-find-file-dwim) "file")
+    ("b" (helm-projectile-switch-to-buffer) "buffer")
+    ("r" (projectile-readme) "readme")
+    ("w" (hydra-treemacs/body) "workspace"))
+   "Do"
+   (("s" (helm-projectile-ag) "search")
+    ("c" (org-projectile-helm-template-or-project) "capture"))
+   "Cache"
+   (("C" projectile-invalidate-cache "clear cache")
+    ("x" (projectile-remove-known-project) "remove this project")
+    ("X" (projectile-cleanup-known-projects) "cleanup missing"))))
+
+(:hydra hydra-default (:color blue)
+  ("Open"
+   (("a" (org-agenda nil "a") "agenda")
+    ("p" (hera-push 'hydra-projectile/body) "projectile")
+    ("o" (hera-push 'hydra-notes/body) "org")
+    ("j" (call-interactively 'org-journal-new-entry) "new journal entry")
+    ("J" (org-journal-new-entry '(4)) "open journal")
+    ("b" (hera-push 'hydra-bookmarks/body) "bookmarks"))
+   "Emacs"
+   (("h" (hera-push 'hydra-help/body) "help")
+    ("m" (hera-push 'hydra-mark/body) "mark")
+    ("w" (hera-push 'hydra-window/body) "windows")
+    ("z" (hera-push 'hydra-zoom/body) "zoom")
+    ("r" (hera-push 'hydra-registers/body) "registers"))
+   "Misc"
+   (("d" (hera-push 'hydra-docs/body) "docs")
+    ("g" (hera-push 'hydra-gist/body) "gist")
+    (";" embrace-commander "embrace"))))
+
+(defun my/hydra-dwim ()
+  (interactive)
+  (let* ((mode major-mode)
+        (orig-mode mode))
+    (catch 'done
+      (while mode
+        (let ((hydra (major-mode-hydra--body-name-for mode)))
+          (when (fboundp hydra)
+            (hera-start hydra)
+            (throw 'done t)))
+        (setq mode (get mode 'derived-mode-parent)))
+      (hera-start 'hydra-default/body))))
+
+(:hydra hydra-yank-pop (:color red)
   ("Yank/Pop"
    (("y" (yank-pop 1) "previous")
     ("Y" (yank-pop -1) "next")
     ("l" helm-show-kill-ring "list" :color blue))))
 
-(global-set-key
- (kbd "C-y")
- (lambda () (interactive) (yank) (hydra-yank-pop/body)))
+(:bind "C-y"
+  (yank)
+  (hydra-yank-pop/body))
 
-(nougat-hydra hydra-zoom (:color red)
-  ("Zoom"
-   (("i" text-scale-increase "in")
-    ("o" text-scale-decrease "out"))))
-
-(nougat-hydra hydra-elisp (:color blue :major-mode emacs-lisp-mode)
+(:hydra hydra-elisp (:color blue :major-mode emacs-lisp-mode)
   ("Execute"
    (("d" eval-defun "defun")
     ("b" eval-current-buffer "buffer")
@@ -1508,7 +1562,30 @@ context-help to false"
    "Debug"
    (("D" edebug-defun "defun")
     ("a" edebug-all-defs "all definitions" :color red)
-    ("A" edebug-all-forms "all forms" :color red))))
+    ("A" edebug-all-forms "all forms" :color red)
+    ("x" macrostep-expand "expand macro"))))
+
+(:hydra hydra-tide (:color blue :major-mode typescript-mode)
+  ("Server"
+   (("r" tide-restart-server "restart")
+    ("k" tide-kill-server "kill")
+    ("C" tide-do-cleanups "cleanup"))
+   "Actions"
+   (("f" tide-fix "fix")
+    ("F" tide-cleanup-imports "format")
+    ("r" tide-references "references")
+    ("R" tide-rename-symbol "rename")
+    ("e" tide-refactor "extract"))
+   "Errors"
+   (("p" tide-error-at-point "error at point")
+    ("P" tide-project-errors "project errors"))))
+
+(:hydra hydra-treemacs (:color red)
+  ("Workspace"
+   (("o" treemacs-switch-workspace "open")
+    ("n" treemacs-create-workspace "new")
+    ("k" treemacs-delete-workspace "kill")
+    ("r" treemacs-rename-workspace "rename"))))
 
 (defun hydra-org-goto-first-sibling () (interactive)
        (org-backward-heading-same-level 99999999))
@@ -1542,8 +1619,7 @@ context-help to false"
             (looking-at org-heading-regexp))
       (next-line))))
 
-(require 'helm-org)
-(nougat-hydra hydra-org (:color red :major-mode org-mode)
+(:hydra hydra-org (:color red :major-mode org-mode)
   ("Shift"
    (("K" org-move-subtree-up "up")
     ("J" org-move-subtree-down "down")
@@ -1557,274 +1633,69 @@ context-help to false"
     ("a" hydra-org-goto-first-sibling "first sibling")
     ("e" hydra-org-goto-last-sibling "last sibling"))
    "Perform"
-   (("b" helm-org-in-buffer-headings "browse")
+   (("t" (org-babel-tangle) "tangle" :color blue)
+    ("e" (org-html-export-to-html) "export" :color blue)
+    ("b" helm-org-in-buffer-headings "browse")
     ("r" (lambda () (interactive)
            (helm-org-rifle-current-buffer)
-           (call-interactively 'org-cycle)
-           (call-interactively 'org-cycle)) "rifle")
+           (org-cycle)
+           (org-cycle)) "rifle")
+    ("w" helm-org-walk "walk")
     ("v" avy-org-goto-heading-timer "avy")
     ("L" org-toggle-link-display "toggle links"))))
 
-(nougat-hydra hydra-brain (:color red :major-mode org-brain-visualize-mode)
-  (
-   "View"
-   (("m" (polybrain-top-then 'org-brain-visualize-mind-map) "mind-map")
-    ("R" (polybrain-top-then 'org-brain-visualize-add-resource) "add resource")
-    ("M-SPC" polybrain-switch "switch"))
-   "Navigate"
-   (("o" (polybrain-top-then 'org-brain-visualize) "open")
-    ("DEL" (polybrain-top-then 'org-brain-visualize-back) "back")
-    ("M-p" (polybrain-top-then 'my/avy-brain-jump-parent) "parent")
-    ("M-c" (polybrain-top-then 'my/avy-brain-jump-child) "child")
-    ("M-f" (polybrain-top-then 'my/avy-brain-jump-friend) "friend")
-    ("M-s" (polybrain-top-then 'my/avy-brain-jump-sibling) "sibling")
-    ("M-h" (polybrain-top-then 'my/avy-brain-jump-history) "history")
-    ("r" (polybrain-top-then 'org-brain-open-resource) "open resource"))
-   "Relations"
-   (("c" (polybrain-top-then 'org-brain-add-child) "add child")
-    ("C" (polybrain-top-then 'org-brain-remove-child) "remove child")
-    ("p" (polybrain-top-then 'org-brain-add-parent) "add parent")
-    ("P" (polybrain-top-then 'org-brain-remove-parent) "remove parent")
-    ("f" (polybrain-top-then 'org-brain-add-friendship) "add friend")
-    ("F" (polybrain-top-then 'org-brain-remove-friendship) "remove friend"))
-   "Manipulate"
-   (("e" (polybrain-top-then 'org-brain-goto-current) "edit")
-    ("D" (polybrain-top-then 'org-brain-delete-entry) "delete")
-    ("t" (polybrain-top-then 'org-brain-set-tags) "tags")
-    ("i" (polybrain-top-then 'org-brain-pin) "pin"))
-   ))
-(nougat-hydra hydra-brain (:color red :major-mode org-brain-visualize-mode)
-  (
-   "View"
-   (("m" (polybrain-top-then 'org-brain-visualize-mind-map) "mind-map")
-    ("R" (polybrain-top-then 'org-brain-visualize-add-resource) "add resource")
-    ("M-SPC" polybrain-switch "switch"))
-   "Navigate"
-   (("o" (polybrain-top-then 'org-brain-visualize) "open")
-    ("DEL" (polybrain-top-then 'org-brain-visualize-back) "back")
-    ("M-p" (polybrain-top-then 'my/avy-brain-jump-parent) "parent")
-    ("M-c" (polybrain-top-then 'my/avy-brain-jump-child) "child")
-    ("M-f" (polybrain-top-then 'my/avy-brain-jump-friend) "friend")
-    ("M-s" (polybrain-top-then 'my/avy-brain-jump-sibling) "sibling")
-    ("M-h" (polybrain-top-then 'my/avy-brain-jump-history) "history")
-    ("r" (polybrain-top-then 'org-brain-open-resource) "open resource"))
-   "Relations"
-   (("c" (polybrain-top-then 'org-brain-add-child) "add child")
-    ("C" (polybrain-top-then 'org-brain-remove-child) "remove child")
-    ("p" (polybrain-top-then 'org-brain-add-parent) "add parent")
-    ("P" (polybrain-top-then 'org-brain-remove-parent) "remove parent")
-    ("f" (polybrain-top-then 'org-brain-add-friendship) "add friend")
-    ("F" (polybrain-top-then 'org-brain-remove-friendship) "remove friend"))
-   "Manipulate"
-   (("e" (polybrain-top-then 'org-brain-goto-current) "edit")
-    ("D" (polybrain-top-then 'org-brain-delete-entry) "delete")
-    ("t" (polybrain-top-then 'org-brain-set-tags) "tags")
-    ("i" (polybrain-top-then 'org-brain-pin) "pin"))
-   ))
-
-(defun my/toggle-window-split (&optional arg)
-    "Switch between 2 windows split horizontally or vertically.
-    With ARG, swap them instead."
-    (interactive "P")
-    (unless (= (count-windows) 2)
-      (user-error "Not two windows"))
-    ;; Swap two windows
-    (if arg
-        (let ((this-win-buffer (window-buffer))
-              (next-win-buffer (window-buffer (next-window))))
-          (set-window-buffer (selected-window) next-win-buffer)
-          (set-window-buffer (next-window) this-win-buffer))
-      ;; Swap between horizontal and vertical splits
-      (let* ((this-win-buffer (window-buffer))
-             (next-win-buffer (window-buffer (next-window)))
-             (this-win-edges (window-edges (selected-window)))
-             (next-win-edges (window-edges (next-window)))
-             (this-win-2nd (not (and (<= (car this-win-edges)
-                                         (car next-win-edges))
-                                     (<= (cadr this-win-edges)
-                                         (cadr next-win-edges)))))
-             (splitter
-              (if (= (car this-win-edges)
-                     (car (window-edges (next-window))))
-                  'split-window-horizontally
-                'split-window-vertically)))
-        (delete-other-windows)
-        (let ((first-win (selected-window)))
-          (funcall splitter)
-          (if this-win-2nd (other-window 1))
-          (set-window-buffer (selected-window) this-win-buffer)
-          (set-window-buffer (next-window) next-win-buffer)
-          (select-window first-win)
-          (if this-win-2nd (other-window 1))))))
-
-(use-package treemacs
-  :demand t
-  :config (progn
-          (setq treemacs-width 25)
-          (global-set-key (kbd "M-<f12>") 'treemacs)
-          (define-key treemacs-mode-map [mouse-1] #'treemacs-single-click-expand-action)
-          (setq treemacs-project-follow-cleanup t)
-          (setq treemacs-is-never-other-window t)))
-
-(setq treemacs-icon-open-png   (propertize "⊖ " 'face 'treemacs-directory-face)
-      treemacs-icon-closed-png (propertize "⊕ " 'face 'treemacs-directory-face))
-
-(use-package treemacs-projectile)
-(use-package treemacs-magit)
-
-(nougat-hydra hydra-treemacs (:color red)
-  ("Workspace"
-   (("o" treemacs-switch-workspace "open")
-    ("n" treemacs-create-workspace "new")
-    ("k" treemacs-delete-workspace "kill")
-    ("r" treemacs-rename-workspace "rename"))))
-
-(defun advice-unadvice (sym)
-  "Remove all advices from symbol SYM."
-  (interactive "aFunction symbol: ")
-  (advice-mapc (lambda (advice _props) (advice-remove sym advice)) sym))
-
-(defun elfeed-font-size-hook ()
-  (buffer-face-set '(:height 1.35)))
-
-(defun elfeed-visual-fill-hook ()
-  (visual-fill-column-mode--enable))
-
-(defun elfeed-show-refresh-advice (entry)
-  (elfeed-font-size-hook)
-  (visual-fill-column-mode 1)
-  (setq word-wrap 1)
-  (elfeed-show-refresh))
-
-(defun elfeed-show ()
+(defun js2r-toggle-async ()
   (interactive)
-  (elfeed)
-  (delete-other-windows))
+  (if (string-equal "async" (thing-at-point 'word))
+      (progn
+        (search-forward "function")
+        (backward-word)))
+  (js2r-toggle-function-async))
 
-(use-package elfeed
-  :bind (("C-x w" . elfeed-show))
-  :config
-  (add-hook 'elfeed-search-update-hook 'elfeed-font-size-hook)
-  (advice-unadvice 'elfeed-show-entry)
-  (advice-add 'elfeed-show-entry :after 'elfeed-show-refresh-advice))
-
-(use-package elfeed-org
-  :after (elfeed)
-  :config
-  (elfeed-org)
-  (setq rmh-elfeed-org-files (list (my/org-file-name "notes.org"))))
-
-(use-package demo-it
-  :straight (demo-it :type git :host github :repo "howardabrams/demo-it"))
-
-(use-package gist
-  :straight (gist :type git :host github :repo "defunkt/gist.el"))
-
-
-(nougat-hydra hydra-gist (:color blue)
-  ("Gist" (("p" (gist-region-or-buffer) "public")
-           ("P" (gist-region-or-buffer-private) "private")
-           ("b" (browse-url "https://gist.github.com/dustinlacewell") "browse"))))
-
-(use-package poker
-  :straight (poker :type git :host github :repo "mlang/poker.el"))
-
-(use-package decide
-  :straight (decide :type git :host github :repo "lifelike/decide-mode"))
-
-(setq ep-notes-file (my/org-file-name "notes.org"))
-
-(defun ep-notes-find-file () (find-file ep-notes-file))
-
-(defun ep-notes-visit (&rest olp) (org-olp-visit ep-notes-file olp))
-;; (ep-notes-visit "Workiva" "Runbooks")
-
-(defun ep-notes-select-then-visit (&rest olp) (org-olp-select-then-visit ep-notes-file olp))
-;; (ep-notes-select-then-visit "Workiva" "Tasks")
-
-(nougat-hydra hydra-bookmarks (:color blue)
-  ("Bookmarks" (("n" (linkmarks-capture) "new")
-                ("b" (linkmarks-select) "browse")
-                ("e" (find-file my/bookmarks-file-name)))))
-
-(require 'org-olp)
-
-(nougat-hydra hydra-tasks (:color blue)
-  ("Todos"
-   (("t" (visit-candidate my/notes-file-name '(todo "TODO")) "todo")
-    ("d" (visit-candidate my/notes-file-name '(todo "DOING")) "doing")
-    ("D" (visit-candidate my/notes-file-name '(todo "DONE")) "done"))))
-
-(nougat-hydra hydra-notes (:color blue)
-  ("Notes"
-   (("f" (org-olp-find my/notes-file-name) "find")
-    ("t" (hera-push 'hydra-tasks/body) "tasks")
-    ("p" (org-olp-visit
-          my/notes-file-name
-          '("Software" "Emacs" "Packages")) "emacs packages"))))
-
-(nougat-hydra hydra-default (:color blue)
-  ("Open"
-   (("a" (org-agenda nil "a") "agenda")
-    ("p" (hera-push 'hydra-projectile/body) "projectile")
-    ("c" (org-capture) "capture")
-    ("b" (hera-push 'hydra-bookmarks/body) "bookmarks"))
-   "Emacs"
-   (("h" (hera-push 'hydra-help/body) "help")
-    ("m" (hera-push 'hydra-mark/body) "mark")
-    ("w" (hera-push 'hydra-window/body) "windows")
-    ("z" (hera-push 'hydra-zoom/body) "zoom")
-    ("r" (hera-push 'hydra-registers/body) "registers"))
+(:hydra hydra-js (:color blue :major-mode js2-mode)
+  ("Eval"
+   (("f" js2-eval-defun "function")
+    ("e" js2-eval "expression"))
+   "Extract"
+   (("f" js2r-extract-function "function")
+    ("m" js2r-extract-method "method")
+    ("v" js2r-extract-var "var")
+    ("l" js2r-extract-let "let")
+    ("c" js2r-extract-let "const"))
+   "Funcs"
+   (("a" js2r-toggle-arrow-function-and-expression "arrow" :color red)
+    ("A" js2r-toggle-async "async" :color red)
+    ("O" js2r-arguments-to-object "object param"))
+   "Vars"
+   (("r" js2r-rename-var "rename")
+    ("i" js2r-inline-var "inline"))
    "Misc"
-   (("n" (hera-push 'hydra-notes/body) "notes")
-    ("g" (hera-push 'hydra-gist/body) "gist")
-    ("B" org-brain-visualize "brain")
-    ("?" episteme-search "search brain")
-    ("l" (progn (setq this-command 'sutysisku-search-helm)
-                (call-interactively 'sutysisku-search-helm)) "lojban"))))
-
-;; (defhydra hydra-default (:color blue :hint nil)
-;;   "
-
-;;             Entrypoint Hydra
-
-;; "
-;;   ("a" (org-agenda nil "a") "agenda" :column "Open")
-;;   ("p" (hera-push 'hydra-projectile/body) "projectile")
-;;   ("c" (org-capture) "capture")
-;;   ("b" (hera-push 'hydra-bookmarks/body) "bookmarks")
-;;   ("h" (hera-push 'hydra-help/body) "help" :column "Emacs")
-;;   ("m" (hera-push 'hydra-mark/body) "mark")
-;;   ("w" (hera-push 'hydra-window/body) "windows")
-;;   ("z" (hera-push 'hydra-zoom/body) "zoom")
-;;   ("R" (hera-push 'hydra-registers/body) "registers")
-;;   ("n" (hera-push 'hydra-notes/body) "notes" :column "Misc")
-;;   ("s" (call-interactively 'helm-imenu) "semantic")
-;;   ("g" (hera-push 'hydra-gist/body) "gist")
-;;   ("b" (call-interactively 'org-brain-visualize) "brain")
-;;   ("l" (progn (setq this-command 'sutysisku-search-helm)
-;;               (call-interactively 'sutysisku-search-helm)) "lojban"))
+   (("k" js2r-kill "kill" :color red)
+    ("t" js2r-string-to-template "string to template")
+    ("l" js2r-log-this "log expr")
+    ("w" js2r-wrap-buffer-in-iife "wrap in iife")
+    ("G" js2r-inject-global-in-iife "global for iife"))))
 
 (when (string-equal system-type "gnu/linux")
 
 (setq exec-path-from-shell-check-startup-files nil)
 
-(load-file "/home/ldlework/.emacs.d/theme.el")
+(load-file "~/.config/wpg/templates/theme.el")
 (enable-theme 'xresources)
+;; (use-package dracula-theme
+;;   :config (enable-theme 'dracula))
 
 (defun theme-callback (event)
-  (load-file "~/.config/wpg/formats/theme.el")
-  (set-eyeliner-colors)
-  (eyeliner/install)
+  (load-file "~/.config/wpg/templates/theme.el")
   (enable-theme 'xresources))
 
 (require 'filenotify)
 (setq theme-watch-handle
       (file-notify-add-watch
-       "/home/ldlework/.config/wpg/formats/theme.el" '(change) 'theme-callback))
+       "/home/ldlework/.config/wpg/templates/theme.el" '(change) 'theme-callback))
 
 (setq powerline-height 32)
-(set-face-attribute 'default nil :family "Source Code Pro" :weight 'light)
+(set-face-attribute 'default nil :family "New Times Roman" :weight 'light)
 
 (use-package unicode-fonts
   :config
@@ -1835,123 +1706,68 @@ context-help to false"
   (set-fontset-font "fontset-default" 'unicode "Symbola" nil)
  )
 
-(defun set-eyeliner-colors ()
-  (setq buffer-name-color "#ff0000")
-  (setq buffer-name-modified-color "#ff0000")
-  (setq eyeliner/warm-color (theme-color 'red))
-  (setq eyeliner/cool-color (theme-color 'cyan))
-  (setq eyeliner/plain-color (theme-color 'foreground))
-  (custom-set-faces
-   `(powerline-active0
-     ((t (:background ,(theme-color 'foreground)))))
-   `(powerline-inactive0
-     ((t (:background ,(theme-color 'foreground)))))
-   `(powerline-active1
-     ((t (:background ,(theme-color 'foreground)
-                      :foreground ,(theme-color 'background)))))
-   `(powerline-inactive1
-     ((t (:background ,(theme-color 'foreground)
-                      :foreground ,(theme-color 'background)))))
-   `(powerline-active2
-     ((t (:background ,(theme-color 'background)))))
-   `(powerline-inactive2
-     ((t (:background ,(theme-color 'background)))))))
-
-(eval `(use-package eyeliner
-   ;; :straight (eyeliner :type git :host github :repo "dustinlacewell/eyeliner")
-   :demand t
-   :straight (eyeliner :local-repo ,(my/project-directory "eyeliner"))
-   :config
-   (spaceline-helm-mode 1)
-   (set-eyeliner-colors)
-   (eyeliner/install)))
-
 (setq ispell-program-name (concat my/home-directory ".nix-profile/bin/aspell"))
-
-(use-package backup-each-save
-  :config (add-hook 'after-save-hook 'backup-each-save))
 
 (setq x-gtk-use-system-tooltips nil)
 
-(when window-system
-  (use-package org-beautify-theme
-    :after (org)
-    :config
-    (setq org-fontify-whole-heading-line t)
-    (setq org-fontify-quote-and-verse-blocks t)
-    (setq org-hide-emphasis-markers t)))
+;; (set-face-attribute
+;;  'helm-selection nil
+;;  :inherit t
+;;  :background (theme-color 'blue)
+;;  :foreground (theme-color 'background)
+;;  :height 1.0
+;;  :weight 'ultra-bold
+;;  :inverse-video nil)
 
-(use-package jedi
-  :init
-  (progn
-    (add-hook 'python-mode-hook 'jedi:setup)
-    (setq jedi:complete-on-dot t)))
+;; (set-face-attribute
+;;  'helm-source-header nil
+;;  :inherit nil
+;;  :underline nil
+;;  :background (theme-color 'background)
+;;  :foreground (theme-color 'light-red)
+;;  :height 1.9)
 
-(defun setup-tide-mode ()
-  (interactive)
-  (tide-setup)
-  (flycheck-mode +1)
-  (setq flycheck-check-syntax-automatically '(save mode-enabled))
-  (eldoc-mode +1)
-  (tide-hl-identifier-mode +1)
-  (company-mode +1))
+;; (set-face-attribute
+;;  'helm-header nil
+;;  :inherit nil
+;;  :height 0.8
+;;  :background (theme-color 'background)
+;;  :foreground (theme-color 'cyan))
 
-(use-package tide
-  :config
-  (add-hook 'before-save-hook 'tide-format-before-save)
-  (add-hook 'typescript-mode-hook #'setup-tide-mode)
-  (add-to-list 'auto-mode-alist '("\\.tsx\\'" . web-mode))
-  (add-hook 'web-mode-hook
-            (lambda ()
-              (when (string-equal "tsx" (file-name-extension buffer-file-name))
-                (setup-tide-mode))))
-  (flycheck-add-mode 'typescript-tslint 'web-mode))
+;; (set-face-attribute
+;;  'helm-separator nil
+;;  :height 0.8
+;;  :foreground (theme-color 'light-red))
 
-(with-eval-after-load 'fsharp-mode
-  (add-to-list 'exec-path "/nix/var/nix/profiles/default/bin")
-  (add-to-list 'exec-path (expand-file-name "~/.nix-profile/bin"))
-  (add-to-list 'auto-mode-alist '("\\.fs[iylx]?$" . fsharp-mode)))
+;; (set-face-attribute
+;;  'helm-match nil
+;;  :weight 'bold
+;;  :foreground (theme-color 'green))
 
-(set-face-attribute
- 'helm-selection nil
- :inherit t
- :background (theme-color 'blue)
- :foreground (theme-color 'background)
- :height 1.0
- :weight 'ultra-bold
- :inverse-video nil)
-
-(set-face-attribute
- 'helm-source-header nil
- :inherit nil
- :underline nil
- :background (theme-color 'background)
- :foreground (theme-color 'light-red)
- :height 1.9)
-
-(set-face-attribute
- 'helm-header nil
- :inherit nil
- :height 0.8
- :background (theme-color 'background)
- :foreground (theme-color 'cyan))
-
-(set-face-attribute
- 'helm-separator nil
- :height 0.8
- :foreground (theme-color 'light-red))
-
-(set-face-attribute
- 'helm-match nil
- :weight 'bold
- :foreground (theme-color 'green))
-
-(enable-theme 'xresources)
+(require 'helm-external)
+(setq helm-external-commands-list
+      (seq-filter (lambda (v) (not (string-match "^\\." v)))
+                  (helm-external-commands-list-1 'sort)))
 
 )
+
+(use-package omnisharp)
+
+(:after company
+  (:push company-backends #'company-omnisharp))
+
+(defun my-linux-csharp-mode-setup ()
+  (omnisharp-mode)
+  (local-set-key (kbd "C-c r r") 'omnisharp-run-code-action-refactoring)
+  (local-set-key (kbd "C-c C-c") 'recompile))
+
+(:hook csharp-mode my-linux-csharp-mode-setup t)
 
 (when (string-equal system-type "windows-nt")
 
 (use-package dracula-theme)
 
 )
+
+(setq org-html-htmlize-output-type 'css)
+(setq org-html-head-include-default-style nil)

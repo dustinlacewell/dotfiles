@@ -1,0 +1,5 @@
+[
+    "nx",
+    "@microsoft/rush",
+    "@rushstack/heft"
+]

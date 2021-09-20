@@ -15,6 +15,8 @@ with lib;
         noto-fonts-emoji
         noto-fonts-extra
         symbola
+        emacs-all-the-icons-fonts
+        emojione
       ];
     };
   };

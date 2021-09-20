@@ -12,9 +12,6 @@ with lib;
       # tig is curses for git
       ts = ''tig status'';
 
-      # i like j better than z
-      j = ''z'';
-
       # auto create parent directories
       mkdir = ''mkdir -pv'';
 

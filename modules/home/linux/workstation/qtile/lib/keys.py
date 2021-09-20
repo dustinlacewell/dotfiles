@@ -2,7 +2,7 @@ from libqtile.config import Key
 from libqtile.command import lazy
 
 from lib import util, consts
-from lib.theme import theme
+from lib.theme import theme, regenTheme
 from lib.groups import keys as group_keys
 from lib.spawners import keys as spawner_keys
 
@@ -65,9 +65,10 @@ keys = keys + make_keys(
     ("o", lazy.layout.maximize()),                      # maximize tile
 
     # theme
-    ("w", lazy.function(theme.regen)),
+    # ("period", lazy.spawn("/home/ldlework/tmp/test.sh")),
+    ("period", lazy.function(regenTheme)),
     ("shift", "w", lazy.spawn("wpg-reset")),
-    ("shift", "a", lazy.function(theme.reload)),
+    ("shift", "a", lazy.function(theme.load)),
     ("Down", lazy.spawn("wpg-desaturate")),
     ("shift", "Up", lazy.spawn("wpg-brighten")),
     ("shift", "Down", lazy.spawn("wpg-darken")),

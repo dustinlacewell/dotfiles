@@ -7,12 +7,8 @@ with import /nixcfg/util;
 let
   cfg = config.mine.workstation.rider;
   utils = import /nixcfg/util;
-  nixpkgs = utils.fetchNixpkgs {
-    rev    = "448de5d5fc3c08595bbf29294e99709213310ed6";
-    sha256 = "1n3dgb8hxjhr1i52v094pdjk0n9jkc21kvx5zhjkcxv4kik3kmaj";
-  };
 
-  rider = nixpkgs.jetbrains.rider.overrideDerivation (old: rec {
+  rider = pkgs.jetbrains.rider.overrideDerivation (old: rec {
     name = "rider-${version}";
     version = "2019.2"; /* updated by script */
     src = pkgs.fetchurl {

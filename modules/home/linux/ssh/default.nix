@@ -1,12 +1,10 @@
 { config, pkgs, lib, ... }:
 
 with lib;
+with import <home-manager/modules/lib/dag.nix> { inherit lib; };
+with import /nixcfg/util;
 
-let
-  dag = config.lib.dag;
-  secrets = import /nixcfg/external/private;
-
-in {
+{
   options.mine.ssh.enable = mkEnableOption "ssh";
 
   config = mkIf config.mine.ssh.enable {
@@ -21,7 +19,7 @@ in {
           # };
       };
     };
-    home.file.".ssh/id_rsa".text = secrets.ssh-private;
-    home.file.".ssh/id_rsa.pub".text = secrets.ssh-public;
+    home.activation.ssh_private = symlink "/nixcfg/external/private/ssh_private" "~/.ssh/id_rsa";
+    home.activation.ssh_public = symlink "/nixcfg/external/private/ssh_public" "~/.ssh/id_rsa.pub";
   };
 }

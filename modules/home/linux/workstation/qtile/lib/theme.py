@@ -1,5 +1,7 @@
+import json
 import os
 import runpy
+import sys
 from collections import defaultdict
 
 
@@ -18,20 +20,22 @@ default_theme = {
     'purple': "#85678f",
     'cyan': "#5e8d87",
     'gray': "#707880",
-    'light_red': "#cc6666",
-    'light_green': "#b5bd68",
-    'light_yellow': "#f0c674",
-    'light_blue': "#81a2be",
-    'light_purple': "#b294bb",
-    'light_cyan': "#8abeb7",
-    'light_gray': "#373b41",
+    'light-red': "#cc6666",
+    'light-green': "#b5bd68",
+    'light-yellow': "#f0c674",
+    'light-blue': "#81a2be",
+    'light-purple': "#b294bb",
+    'light-cyan': "#8abeb7",
+    'light-gray': "#373b41",
     'white': "#c5c8c6",
 }
 
 
 def get_prop_name(string):
     '''
-    Try to extract name of theme property from `string`.
+    Try to extract name of theme property from `string` or None.
+
+    e.g. "{{foobar}" => "foobar"
     '''
 
     if not isinstance(string, str):
@@ -48,6 +52,11 @@ class ThemeProperty:
         # widget -> list of attr names
         self.subs = defaultdict(list)
 
+    def setValue(self, value):
+        for widget, attr_names in self.subs.items():
+            for attr_name in attr_names:
+                setattr(widget, attr_name, value)
+        return set(self.subs.keys())
 
 class Theme:
     def __init__(self, data):
@@ -82,47 +91,66 @@ class Theme:
         '''Set the value of a theme property and all subscribed widget attributes to
         `value`. Return a set of widgets which need to be redrawn.'''
         prop = self.props[prop_name]
-        prop.value = value
-        for widget, attr_names in prop.subs.items():
-            for attr_name in attr_names:
-                logger.warning("Setting {} on {}".format(attr_name, widget.__class__))
-                setattr(widget, attr_name, value)
-        return set(prop.subs.keys())
+        return prop.setValue(value)
 
-    def update(self, theme):
+    def update(self, data):
         widgets = set()
-        for prop_name, value in theme.items():
+        for prop_name, value in data.items():
             widgets |= self.set(prop_name, value)
-        logger.warning("{} WIDGETS TO DRAW".format(len(widgets)))
         for widget in widgets:
             widget.draw()
 
 
-def get_theme(filename):
-    path = os.path.expanduser(filename)
-    if os.path.exists(path):
-        try:
-            return runpy.run_path(path)
-        except Exception as e:
-            logger.error("Couldn't load {}".format(path))
-            logger.error(e)
-            return default_theme
+class FileTheme(Theme):
+    def __init__(self, filename):
+        data = self.load(filename)
+        super(FileTheme, self).__init__(data)
+
+    def loadFile(self, filename):
+        raise NotImplemented("FileTheme must be subclassed.")
+
+    def load(self, filename = None):
+        self.filename = filename or self.filename
+        path = os.path.expanduser(self.filename)
+        if os.path.exists(path):
+            try:
+                return self.loadFile(path)
+            except Exception as e:
+                logger.error("Couldn't load {}".format(path))
+                logger.error(e)
+        else:
+            logger.error(f"Theme does not exist: {path}")
+
+    def update(self, filename=None):
+        data = self.load(filename)
+        super(FileTheme, self).update(data)
 
 
-class PywalTheme(Theme):
-
-    def reload(self, *args):
-        data = get_theme("~/.config/wpg/formats/colors.py")
-        logger.error("WTFFF")
-        self.update(data)
-
-    def regen(self, _):
-        try:
-            util.call('wal-regen')
-        except Exception as e:
-            logger.error(e)
-        finally:
-            self.reload()
+class PythonTheme(FileTheme):
+    def loadFile(self, filename):
+        return runpy.run_path(filename)
 
 
-theme = PywalTheme(get_theme("~/.config/wpg/formats/colors.py"))
+class JsonTheme(FileTheme):
+    def loadFile(self, filename):
+        with open(filename) as fobj:
+            return json.load(fobj)
+
+
+class WpgtkTheme(JsonTheme):
+    def loadFile(self, filename):
+        data = super(WpgtkTheme, self).loadFile(filename)
+        colors = data["colors"]
+        colors.update(data["special"])
+        return colors
+
+
+theme = WpgtkTheme("~/.config/wpg/templates/colors.json")
+
+
+def regenTheme(_):
+    try:
+        util.call('wpg-regen')
+        theme.update()
+    except Exception as e:
+        logger.error(e)

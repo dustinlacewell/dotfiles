@@ -16,7 +16,7 @@ let
   });
 
   wrapper = pkgs.writeShellScriptBin "weechat" ''
-    ${pkgs.rxvt_unicode-with-plugins}/bin/urxvt --internalBorder 0 -e ${pkgs.weechat}/bin/weechat
+    ${pkgs.kitty}/bin/kitty ${pkgs.weechat}/bin/weechat
   '';
 
 in {

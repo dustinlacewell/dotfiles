@@ -47,7 +47,7 @@ in {
       "qutebrowser/userscripts".source = "${qutebrowser}/share/qutebrowser/userscripts/";
     };
 
-    mine.workstation.pywal.loadScript = subbedString ''
+    mine.workstation.wpgtk.loadScript = subbedString ''
       @procps@/bin/pgrep -lf qutebrowser
       if [ $? -eq 0 ]; then
       @qutebrowser@/bin/qutebrowser ":config-source /nixcfg/modules/home/linux/workstation/qutebrowser/config/theme.py" &
@@ -55,4 +55,5 @@ in {
     '' { qutebrowser = "${qutebrowser}"; procps = "${pkgs.procps}"; };
   };
 }
+
 

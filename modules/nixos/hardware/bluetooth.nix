@@ -7,7 +7,7 @@ with lib;
 
   config = mkIf config.mine.bluetooth {
     hardware.bluetooth.enable = true;
-    hardware.bluetooth.package = pkgs.unstable.bluezFull;
+    hardware.bluetooth.package = pkgs.bluezFull;
   };
 }
 

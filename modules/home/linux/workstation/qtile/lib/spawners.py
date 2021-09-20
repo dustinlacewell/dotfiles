@@ -15,8 +15,7 @@ def make_spawners(base_mods, *entries):
 
 keys = make_spawners(
     [consts.MODKEY],  # base modifiers for all entries
-
     ('F12', "rofi -show run"),
     ("quoteleft", "pkill -fn ffmpeg"),
-    ("Return", 'urxvt-bordered -e ranger'),
+    ("Return", 'kitty'),
 )

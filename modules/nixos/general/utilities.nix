@@ -20,11 +20,10 @@
     pstree  htop
     git tig bat
     zip unzip unrar
-    nixops nix-index
-    emacs26-nox
+    nix-index
     dropbox-cli
     lastpass-cli
-
+    direnv
     ntfs3g
   ];
 }

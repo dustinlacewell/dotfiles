@@ -16,7 +16,6 @@ python37Packages.buildPythonApplication rec {
 
   pythonPath = [
     python37Packages.pygobject3
-    python37Packages.pillow
     pywal
     imagemagick
   ];

@@ -13,28 +13,51 @@ with import /nixcfg/util;
       mpv
       pqiv
       spotify
-      (wine.override { wineBuild = "wineWow"; })
+      libnotify
+      alacritty
+      discord
+      deluge
+      cowsay
     ];
+
+    xdg.dataFile."fonts/extraFonts".source = ./fonts;
 
     mine.workstation = enableMultiple [
       "autocutsel"
-      "browser-sync"
-      "cdda"
-      "discord"
+      # "basilisk"
+      # "browser-sync"
+      # "cdda"
+      "chrome"
+      # "discord"
+      "dunst"
       "emacs"
       "evince"
-      "imgur-screenshot"
+      # "godot"
+      # "imgur-screenshot"
+      "kitty"
+      # "katago"
+      # "lepton"
+      # "mathematica"
+      "node"
+      # "orca"
+      "obs"
+      "java"
       "postman"
-      "pycharm"
-      "pywal"
+      # "pycharm"
       "qtile"
-      "qutebrowser"
+      # "qutebrowser"
       "recap"
+      # "rpcs3"
+      # "retroarch"
       "rofi"
-      "rider"
-      "twmn"
-      "urxvt"
+      # "rider"
+      # "sabaki"
+      # "sunvox"
+      # "sheepshaver"
+      # "staruml"
+      # "urxvt"
       "wpgtk"
+      # "vcvrack"
       "vscode"
     ];
   };

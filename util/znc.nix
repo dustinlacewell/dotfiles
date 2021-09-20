@@ -17,8 +17,8 @@ let
     Pass.password = secrets.znc-auth;
 
     Network = mapAttrs (network: conf: {
-      LoadModule = [ "sasl" ];
-      Server = conf;
+      LoadModule = optional conf.sasl "sasl";
+      Server = conf.server;
     }) userconfig.network;
   }) users;
 

@@ -21,16 +21,19 @@ in {
   options.mine.ranger.enable = mkEnableOption "ranger";
 
   config = mkIf cfg.enable {
-    home.packages = [ deps.ranger ];
-    home.file.".config/ranger/rc.conf".text = rc;
-    home.file.".config/ranger/commands.py".source = ./commands.py;
+    home.packages = [ deps.ranger ffmpegthumbnailer poppler_utils ];
+
+    xdg.configFile."ranger/rc.conf".text = rc;
+    xdg.configFile."ranger/commands.py".source = ./commands.py;
+    xdg.configFile."ranger/rifle.conf".source = ./rifle.conf;
+    xdg.configFile."ranger/scope.sh".source = ./scope.sh;
 
     programs.zsh.sessionVariables = { RANGER_LOAD_DEFAULT_RC = "TRUE"; };
 
     programs.zsh.initExtra = ''
       if [ -n "$RANGER_LEVEL" ]; then
       TRAPINT() {
-      kill $PPID
+         kill $PPID
       }
       trap "pwd > /tmp/rangershelldir-$USER" EXIT
       fi

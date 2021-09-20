@@ -1,0 +1,18 @@
+*** a/BasiliskII/src/Unix/Linux/scsi_linux.cpp.orig	2015-03-06 07:09:13.451410460 -0800
+--- a/BasiliskII/src/Unix/Linux/scsi_linux.cpp	2015-03-06 07:10:24.332100378 -0800
+***************
+*** 22,28 ****
+  
+  #include <sys/ioctl.h>
+  #include <linux/param.h>
+! #include <linux/../scsi/sg.h>	// workaround for broken RedHat 6.0 /usr/include/scsi
+  #include <unistd.h>
+  #include <errno.h>
+  
+--- 22,26 ----
+  
+  #include <sys/ioctl.h>
+  #include <linux/param.h>
+! #include <scsi/sg.h>
+  #include <unistd.h>
+  #include <errno.h>

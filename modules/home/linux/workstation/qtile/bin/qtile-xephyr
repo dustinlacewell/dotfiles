@@ -1,0 +1,15 @@
+#!@shell@
+
+SCREEN_SIZE=${SCREEN_SIZE:-1880x965}
+XDISPLAY=${XDISPLAY:-:1}
+LOG_LEVEL=${LOG_LEVEL:-INFO}
+CMD="@qtile@/bin/qtile"
+
+Xephyr +extension RANDR -screen ${SCREEN_SIZE} ${XDISPLAY} -ac &
+XEPHYR_PID=$!
+(
+  sleep 1
+  env DISPLAY=${XDISPLAY} QTILE_XEPHYR=1 ${CMD} start -l ${LOG_LEVEL} $@ &
+  wait $!
+  kill $XEPHYR_PID
+)

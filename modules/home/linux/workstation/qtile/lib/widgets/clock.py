@@ -7,4 +7,4 @@ clock = theme.r(
     Clock,
     format='%H:%M %d/%m/%y',
     padding=6,
-    foreground="{{foreground}}")
+    foreground="{{light-green}}")

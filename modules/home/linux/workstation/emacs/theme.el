@@ -205,6 +205,39 @@
 
    ;; Third-party
 
+   ;; doom-modeline
+   `(doom-modeline-bar ((t (:background ,cyan))))
+   `(doom-modeline-bar-inactive ((t (:background ,background))))
+   `(doom-modeline-urgent ((t (:foreground ,red :weight bold))))
+   `(doom-modeline-buffer-modified ((t (:foreground ,yellow :background nil :weight bold))))
+
+   `(treemacs-file-face
+     ((t (:foreground "#FFF" :background nil :weight ultra-light))))
+
+   `(treemacs-directory-face
+     ((t (:foreground "#F00" :background nil :weight ultra-light))))
+   `(treemacs-directory-collapsed-face
+     ((t (:inherit treemacs-directory-face :weight ultra-light))))
+
+   `(treemacs-fringe-indicator-face
+     ((t (:foreground ,cyan :background ,cyan))))
+
+   `(treemacs-tags-face
+     ((t (:foreground ,green :background nil :weight normal :slant italic))))
+
+   `(treemacs-git-added-face
+     ((t (:foreground "#0F0"))))
+   `(treemacs-git-conflict-face
+     ((t (:foreground "#F00"))))
+   `(treemacs-git-modified-face
+     ((t (:foreground "#FF0"))))
+   `(treemacs-git-ignored-face
+     ((t (:foreground "#444"))))
+   `(treemacs-git-untracked-face
+     ((t (:inherit treemacs-file-face))))
+   `(treemacs-git-unmodified-face
+     ((t (:inherit treemacs-file-face))))
+
    ;; which-function-mode
    `(which-func ((t (:foreground ,blue))))
 
@@ -439,11 +472,9 @@
      ((t (:background ,(scale-both background 1.2 0.5)
                       :box nil :height 0.8 :family "Menlo"))))
    `(org-block-begin-line
-     ((t (:foreground ,foreground
-                      :background ,(scale-both background 0.1 0.4)))))
+     ((t (:height 0.6 :family "Menlo"))))
    `(org-block-end-line
-     ((t (:foreground ,foreground
-                      :background ,(scale-both background 0.1 0.4)))))
+     ((t (:height 0.6 :family "Menlo"))))
    `(org-checkbox
      ((t (:background ,background :foreground ,foreground :box (:color "#93a1a1" :style "released-button")))))
    `(org-date ((t (:foreground ,blue :underline t))))

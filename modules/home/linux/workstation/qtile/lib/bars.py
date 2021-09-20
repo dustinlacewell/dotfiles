@@ -17,30 +17,18 @@ widget_defaults = dict(
 
 top_bar = theme.r(bar.Bar, [
     widgets.groupbox,
-    widget.Spacer(),
+    theme.r(widget.Spacer, background="{{background}}"),
     widgets.spotify,
     widget.Systray(),
-    widget.Spacer(length=20),
-    # widgets.wlan,
-    widgets.battery,
-    widget.Spacer(length=20),
+    theme.r(widget.Spacer, background="{{background}}", length=20),
+
     widgets.volume,
 ], bar_height, background="{{background}}")
 
-
-bottom_bar = bar.Bar([
+bottom_bar = theme.r(bar.Bar, ([
     widgets.windowname,
     widgets.observers,
-    widget.Pomodoro(
-        num_pomodori=2,
-        length_long_break=10,
-        fmt="🍅%s",
-        prefix_inactive="",
-        prefix_paused="⏹️️",
-        prefix_break="⏸",
-        prefix_long_break="⏸",
-    ),
     widgets.clock,
-], bar_height)
+]), bar_height, background="{{background}}")
 
 screens = [Screen(top=top_bar, bottom=bottom_bar)]

@@ -9,15 +9,9 @@ with lib;
     services.nginx = {
       enable = true;
       virtualHosts = {
-        "localhost" = {
-          serverName = "logos.ldlework.com";
+        "logos.ldlework.com" = {
           forceSSL = false;
           root = "/var/www/";
-          # locations = {
-            #   "/" = {
-              #     proxyPass = "http://localhost:8000/";
-              #   };
-            # };
         };
       };
     };

@@ -8,8 +8,8 @@ let
     src = fetchFromGitHub {
       owner = "MarianArlt";
       repo = "sddm-sugar-light";
-      sha256 = "0s91pjg0z55sq53vw0wjbcl7zp1axvhcjnc4pqk1gmlrhr933l65";
-      rev = "8537bc6";
+      sha256 = "1xymi0xnwskgq0ddpm0vbxk4nwc4azdz5hq3nmkpd8p24js5kmr9";
+      rev = "19bac00e7bd99e0388d289bdde41bf6644b88772";
 
     };
     buildInputs = [ sddm qt5.qtquickcontrols ];
@@ -21,5 +21,5 @@ let
     '';
   };
 in {
-  environment.systemPackages = [ sddm-sugar-light ];
+  environment.systemPackages = [ /* sddm-sugar-light */ ];
 }

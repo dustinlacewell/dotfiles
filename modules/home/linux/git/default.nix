@@ -9,7 +9,6 @@ in {
   options.mine.git.enable = mkEnableOption "git";
 
   config = mkIf config.mine.git.enable {
-    home.packages = [ pkgs.git deps.git-spindle ];
-    programs.zsh.oh-my-zsh.plugins = [ "git" ];
+    home.packages = [ pkgs.git ];
   };
 }

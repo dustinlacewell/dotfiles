@@ -4,8 +4,6 @@ with lib;
 
 with import /nixcfg/util;
 
-with import <home-manager/modules/lib/dag.nix> { inherit lib; };
-
 let
   cfg = config.mine.workstation.qtile;
 
@@ -22,20 +20,28 @@ in {
     };
 
     mine.workstation.qtile.startupCommands = ''
-      ${pkgs.twmn}/bin/twmnd &
       ${pkgs.networkmanagerapplet}/bin/nm-applet &
     '';
 
     home.packages = [
-      pkgs.twmn pkgs.playerctl pkgs.xsel
-      (writeSubbedBin  {
-        name = "mute";
-        src = ./bin/mute.sh;
-      })
+      pkgs.playerctl pkgs.xsel
+
       (pkgs.writeScriptBin "qtile-startup" ''
         #!${pkgs.stdenv.shell}
         ${cfg.startupCommands}
       '')
+
+      (writeSubbedBin  {
+        name = "mute";
+        src = ./bin/mute.sh;
+      })
+
+      (writeSubbedBin {
+        name = "qtile-xephyr";
+        src = ./bin/qtile-xephyr;
+        qtile = pkgs.qtile;
+        python = pkgs.python;
+      })
     ];
   };
 }

@@ -30,7 +30,7 @@ def make_scratchpad(modifiers, *entries):
         keys.append(new_key)
         new_dropdown = DropDown(dd_name, command,
                                 x=0, y=0,
-                                width=0.999, height=0.5)
+                                width=0.999, height=0.7)
         dropdowns.append(new_dropdown)
     return ScratchPad(name, dropdowns), keys
 
@@ -42,7 +42,7 @@ scratchpad, scratchpad_keys = make_scratchpad(
     ("8", util.sh("cd ~/src/emacs-nougat; bin/build-elisp.sh ldlework")),
     ("9", util.sh("switch")),
     ("0", util.sh("hm-switch")),
-    ("semicolon", "urxvt -e ranger"))
+    ("semicolon", "kitty -e ranger"))
 
 groups = workspaces + [scratchpad]
 keys = workspace_keys + scratchpad_keys

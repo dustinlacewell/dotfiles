@@ -7,4 +7,4 @@ windowname = theme.r(
     WindowName,
     padding=8,
     margin_y=-4,
-    foreground="{{foreground}}")
+    foreground="{{light-green}}")

@@ -1,0 +1,15 @@
+#@shell@
+
+files=()
+
+while :; do
+    if [[ "$1" = "--" ]]; then
+        shift
+        break
+    else
+        files+=("$1")
+        shift
+    fi
+done
+
+while inotifywait -e close_write "${files[@]}"; do bash -c "$@"; done

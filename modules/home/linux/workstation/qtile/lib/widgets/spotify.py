@@ -35,7 +35,7 @@ class Spotify(base.InLoopPollText):
             artist = self.info("metadata xesam:artist")
 
             if status.strip() == 'Playing':
-                self.layout.colour = theme['light_green']
+                self.layout.colour = theme['light-green']
             else:
                 self.layout.colour = theme['green']
 
@@ -51,4 +51,4 @@ class Spotify(base.InLoopPollText):
             return str(e)
 
 
-spotify = theme.r(Spotify, foreground="{{light_green}}")
+spotify = theme.r(Spotify, foreground="{{light-green}}")

@@ -4,10 +4,6 @@ with lib;
 
 let
   utils = import /nixcfg/util;
-  nixpkgs = utils.fetchNixpkgs {
-    rev    = "24c02a0f5dd18434fd497634beaa776dd7fd0156";
-    sha256 = "05jgpw7p9iyf30qr6dlr08rms6sih2dx162s4hi6fwwblm3qgr54";
-  };
 
   godaddy = buildGoPackage rec {
     name = "terraform-provider-godaddy-${version}";
@@ -27,16 +23,16 @@ let
     postBuild = "mv go/bin/terraform-godaddy{,_v${version}}";
   };
 
-  terraform = (nixpkgs.terraform_0_11.overrideAttrs (oldAttrs: rec {
-    passthru = { plugins = [ godaddy ] ++ oldAttrs.passthru.plugins; };
-  }));
+  # terraform = (pkgs.terraform_0_11.overrideAttrs (oldAttrs: rec {
+    #   passthru = { plugins = [ godaddy ] ++ oldAttrs.passthru.plugins; };
+    # }));
 
 
 in {
   options.mine.terraform.enable = mkEnableOption "terraform";
 
   config = mkIf config.mine.terraform.enable {
-    home.packages = [ terraform pkgs.terragrunt ];
+    home.packages = [ pkgs.terraform pkgs.terragrunt ];
   };
 }
 
